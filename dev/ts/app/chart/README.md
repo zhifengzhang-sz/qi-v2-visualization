@@ -1,19 +1,25 @@
 # chart: a chart of bars with its 缠论 structure
 
 The chart app of qi-v2-visualization, the project's own tool and not a product (`PRODUCTS.md`), built as the flake
-package and app `chart`. It takes a run of the published results, K-lines with their structure (包含, 分型, 笔, 线段,
-走势 and 中枢, by level) by 缠论's contract, and draws it as pages, `chart.html` (TradingView's Lightweight Charts) and
-`chart-d3fc.html` (D3 and d3fc), and, asked for, as a static picture (TikZ). It computes no structure; a CSV of bars
-alone is drawn with none, and, asked for, as an online page, its last K-lines coming one at a time. Its design:
-`docs/designs/design-chart-app-2026-10-24.md` and `docs/designs/design-chart-lib-2026-10-24.md`.
+package and app `chart`. It takes a run of bars, a CSV, and, beside them where there is one, a run of 缠论's contract
+over those bars (包含, 分型, 笔, 线段, 走势 and 中枢, by level), and draws them as pages, `chart.html` (TradingView's
+Lightweight Charts) and `chart-d3fc.html` (D3 and d3fc), and, asked for, as a static picture (TikZ). It computes no
+structure; bars alone are drawn with none, and, asked for, as an online page, their last K-lines coming one at a time.
+It takes no published results until they name the K-lines they were made from. Its design:
+`docs/designs/design-chart-app-2026-10-24.md`, `docs/designs/design-chart-lib-2026-10-24.md` and
+`docs/designs/design-chart-chanlun-3-2026-11-09.md`.
 
 ## Changes
 
 - **Copied** (qi-v2-visualization, 2026-10-28): `chart` 1.8.0 and its unreleased changes below, from the project
   where it was made, its flake package named `chart`; the entries below are that project's.
-- **Unreleased**: the structure only from the published results (`--results FILE --scale N`; `make chart SET=<set>`),
-  decoded by the contract's `decodeRun`, in place of a program run on the bars and of a structure given; no Docker; a
-  run of bars only (`--input` and `--request` alone; `make chart … CHANLUN=none`); a page's window (`--window
+- **Unreleased**: with `@qi/chart` 3.0.0 (this project's `docs/designs/design-chart-chanlun-3-2026-11-09.md`), on 缠论's
+  contract `chanlun` 3.1.0: no published results (`--results`, `--scale`, `make chart SET=` gone); a run of 3.1.0's
+  records beside the bars (`--run FILE` with `--input` and `--request`; `make chart … RUN=`), its positions the places
+  of the bars, `--window` refused with it; `make chart … CHANLUN=none` gone, bars alone being `INPUT=` and `REQUEST=`;
+  the settings' 分型 one `colour`, 走势's `flat`. Before it: the structure only from the published results
+  (`--results FILE --scale N`; `make chart SET=<set>`), decoded by the contract's `decodeRun`, in place of a program
+  run on the bars and of a structure given; no Docker; a run of bars only (`--input` and `--request` alone; `make chart … CHANLUN=none`); a page's window (`--window
   FROM:TO|Ny|Nm`; `make chart … WINDOW=` or `LAST=`): the page given only that window's K-lines and the configurations
   inside it, the 缠论 structure still the whole run's (`src/window.ts`); the tv engine's conflation on; 缠论's records
   checked by `@qi/chanlun`, 缠论's contract (`chanlun-1.1.0` of `qi-v2-contracts`), in place of this project's; with
@@ -27,23 +33,16 @@ alone is drawn with none, and, asked for, as an online page, its last K-lines co
 ## Run it
 
 ```
-nix run <visualization>#chart -- DIR --results set.json --scale N [--title T] [--level all|0|1…]
-nix run <visualization>#chart -- DIR --input bars.csv --request request.json [--title T] [--level all|0|1…]
+nix run <visualization>#chart -- DIR --input bars.csv --request request.json [--run run.json] [--title T] [--level all|0|1…]
 nix run <visualization>#chart -- DIR [--title T] [--level all|0|1…]
 ```
 
 Each form also takes `[--engine tv,d3fc,tikz] [--range all|FROM-TO] [--periods NAME=DIR,…] [--config FILE]
-[--marks FILE] [--window FROM:TO|Ny|Nm]`, and the second `[--online N]`.
+[--marks FILE]`, and, of bars alone, `[--window FROM:TO|Ny|Nm] [--online N]`.
 
-The structure comes only from the published results, the product `chanlun-results`. The package reads no lock: it is
-given a set's file and its scale. In this project, `make results-fetch` takes the files `results.lock` names, by the
-image's digest, with `crane`, and `make chart SET=<set>` finds a set's file and scale; the image is public, so that
-needs no login, and no Docker.
-
-- With `--results` and `--scale`, a run of the results is made into `DIR`: `run.json`, the file as it is, and
-  `meta.json`. Then the pages.
-- With `--input` and `--request`, a run of bars only: `in.csv` and `meta.json`, no structure, the bars the x-axis
-  (`meta.json` says `"bars": true`, so its pages drawn again stay so). Then the pages.
+- With `--input` and `--request`, a run is made into `DIR`: `in.csv` and `meta.json`, the bars the x-axis; with
+  `--run` too, `run.json`, the file as it is, 缠论's records over those bars (`meta.json` says `"run": true`, so its
+  pages drawn again keep it). Then the pages.
 - With `DIR` alone, the pages of a run made already.
 - `--level`: the levels ticked at first, all or one.
 - `--marks FILE`: a page's marks, a file of them (its levels, points, spans and moves, by the data's times;
@@ -58,6 +57,8 @@ needs no login, and no Docker.
 - `--range all|FROM-TO`: the K-lines the picture draws, all or those from one position to another; all where none is
   given; refused without `tikz`.
 - `--config FILE`: the settings (below); the package's `chart.toml` where none is given.
+- `--window FROM:TO|Ny|Nm`: of bars alone, the page given only that window's K-lines, the closes before it first
+  (`src/window.ts`); refused with a run, whose merged bars are numbered by their place in the whole.
 - `--online N`: an online page, of a run of bars alone, N fewer than its K-lines: all but its last N drawn whole by
   `@qi/chart`'s batch, then each of the N given to its online component, every quarter of a second, as the market
   data's records, ongoing K-lines that reach its values (its open, then its body, then the whole of it) and then the
@@ -92,11 +93,6 @@ made or anything drawn.
 
 ## Its input
 
-`set.json`: a run of the results, the records of one run by 缠论's contract, decoded by the contract's own `decodeRun`:
-a file it does not take stops the command, its fault named. A run holds no scale, source or title. `--scale` is the
-power of ten its prices are held at, 1 to 1,000,000 (in this project, the set's `scale` in `results.lock`); the file's
-name without `.json` is the page's source and its title where `--title` gives none.
-
 `bars.csv`: `time,open,high,low,close` and optionally `volume`, one bar a line in time order; the time
 `YYYY-MM-DD HH:MM`, `YYYY-MM-DD HH:MM:SS` or `YYYY-MM-DD`, a day of the calendar and a time of a day (2025-02-30 is
 refused, not read as March 2), read as UTC and shown as it is; the prices decimals; the volume digits, with a decimal part or not (no sign, no exponent).
@@ -108,10 +104,16 @@ The package's `bin/chart` gives the engines' files itself (`--bundle`, `--lib`,
 whole number at it, exactly; a price with more decimals than the scale holds is refused, never rounded. The source is
 the bars' origin, written on the pages.
 
+`run.json`: a run of 缠论's contract `chanlun` 3.1.0 over the bars, decoded by the contract's own `decodeRun` (a file it
+does not take stops the command, its fault named); its positions the places of the bars, from 0. `@qi/chart` checks it
+against the bars (`located`): every position of a merged bar is one of the bars, each bar of a merged bar's `extremes`
+holds its extreme, and every merged bar a record names is the run's. In this project, `make vectors` writes the
+contract's own vectors in this form: `bars.csv`, `request.json` and `run.json`.
+
 ## The pages
 
-The toolbar: 周期 (the same bars at other periods), 全部 and 最近, 成交量分布 (the price distribution of the 笔, 线段
-or 中枢 under the pointer), 指标 (an average added), and the settings' gear. The legend on the chart, at each pane's top
+The toolbar: 周期 (the same bars at other periods), 全部 and 最近, 成交量分布 (the price distribution of the 笔, 线段,
+走势 or 中枢 under the pointer), 指标 (an average added), and the settings' gear. The legend on the chart, at each pane's top
 left: the K-line under the pointer (else the last) with its prices; a line a layer (成交量, the averages; MACD in its
 subgraph) in its colour with its values (where `DIR/history.csv` holds the closes before the first bar, `d,c` at the
 scale, the averages start from them); a level's line, its 包含, 分型, 笔, 线段, 走势 and 中枢 turned on or off by a
@@ -128,8 +130,8 @@ Each page carries its input, the components as read, the closes before the run, 
 and the levels ticked at first, and the app's script
 (`src/edge/browser.ts`, bundled for the browser), which makes the engine's description in the browser by the functions
 the command uses; the package's `bin/chart` gives it (`--bundle`), as it gives the engines' files. A page is of the
-order of its set's size: about 2 MB for 4,000 minutes, 12 MB for three months of them.
+order of its input's size: about 2 MB for 4,000 minutes with their structure.
 
-The structure is drawn as the results give it, with one correction: the results date a line and a 中枢 by the last
-K-line of a merged bar, and the chart puts each on the K-line that holds the merged bar's extreme. Where a 中枢 ends is
-drawn as given.
+The structure is drawn as the contract reads its records (`docs/designs/design-chart-chanlun-3-2026-11-09.md`): each
+record at the K-lines its merged bars name, each 线段, 走势 and 中枢 in the group of its own level; the page's source
+line says the records are beside the bars.

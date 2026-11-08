@@ -1,5 +1,5 @@
 // 成交量分布's drawing, for any engine (docs/designs/design-chart-lib-2026-10-24.md, The DSL): the price
-// distribution of each 笔, 线段 or 中枢, shown while the pointer is on its K-lines, its rows along the price axis in
+// distribution of each 笔, 线段, 走势 or 中枢, shown while the pointer is on its K-lines, its rows along the price axis in
 // the candles' up and down colours, the value area stronger. One layer per kind and level; the page shows one,
 // picked in a pull-down.
 
@@ -9,9 +9,9 @@ import type { Profile, Profiles } from "./schemas.ts";
 // the pull-down's name
 export const profileChoice = "成交量分布";
 
-// a layer's name in the pull-down: 笔, or 线段 and 中枢 with their level
-const nameOf = (p: Profiles): string =>
-  p.kind === "bi" ? "笔" : `${p.kind === "duan" ? "线段" : "中枢"} ${p.level}`;
+// a layer's name in the pull-down: 笔, or 线段, 走势 and 中枢 with their level
+const names = { duan: "线段", zoushi: "走势", zhongshu: "中枢" } as const;
+const nameOf = (p: Profiles): string => (p.kind === "bi" ? "笔" : `${names[p.kind]} ${p.level}`);
 
 const drawn =
   <R>(e: Engine<R>) =>

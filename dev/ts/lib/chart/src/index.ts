@@ -1,7 +1,8 @@
 // @qi/chart, a 缠论 drawing library (docs/designs/design-chart-lib-2026-10-24.md; dev/docs/lib.md, Domain libraries
 // and apps). It knows no app and no producer, and computes no structure: it draws what it is given.
-// - What it takes: 缠论's data (@qi/chanlun's contracts) and the settings (schemas.ts), each checked by its schema;
-//   then `located` (locate.ts) checks that the configurations fit the K-lines, which the one map puts them on.
+// - What it takes: market's K-lines (@qi/market) and, beside them, a run of 缠论's contract over them (@qi/chanlun),
+//   and the settings (schemas.ts); `located` (locate.ts) checks that the run fits the K-lines, which the one map puts
+//   its records on (docs/designs/design-chart-chanlun-3-2026-11-09.md).
 // - How it draws: each component has two callbacks, derive and draw (drawing.ts), drawing with the DSL's primitives
 //   (dsl.ts). The library's own components: kline.ts, volume.ts, baohan.ts, fenxing.ts, lines.ts, zhongshu.ts, and
 //   成交量分布 (distribution.ts, profile.ts); the caller's: add-ons (addon.ts). Marks are a DSL of their own
@@ -16,7 +17,7 @@
 // What it exports is what a taker uses, the rest being the library's own (its tests import that from its modules):
 // - drawing a chart: tvChart, d3fcChart, tikzChart; located, drawing, effective, merged; marksOn;
 // - taking it one K-line at a time: online, complete, forming; tvTail, d3fcTail; tvApplied, d3fcApplied;
-// - what a chart takes, with its schemas: the K-lines, each a contract's (xAxisSchema), the options (optionsSchema,
+// - what a chart takes, with its schemas: the K-lines, market's (xAxisSchema), the options (optionsSchema,
 //   and the pieces an add-on's style is built from), the marks (marksSchema, markLayerSchema);
 // - what it gives: each engine's page data (chartSchema, layersSchema, d3fcSchema), and the handles' types;
 // - writing an add-on or an engine of one's own: addOn, and the DSL's types (dsl.ts).

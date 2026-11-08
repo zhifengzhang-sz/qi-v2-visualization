@@ -1,77 +1,25 @@
-// 成交量分布's derive (distribution.ts): over a configuration's K-lines, from its start merged bar's to
-// its end's by the library's one map; rows by
-// the cents spanned, at most 24; each level's 线段 (level 0's duan, level L's the 走势 of L − 1) and 中枢; a kind and
-// level with none left out; the volumes whole.
+// 成交量分布's derive (distribution.ts): over a record's K-lines, from the K-line that represents its start merged bar
+// to the one that represents its end merged bar, by the library's one map; rows by the cents spanned, at most 24; each
+// 笔, each level's 线段, 走势 and 中枢; a kind and level with none left out; the volumes whole.
 
-import { result } from "@qi/base";
-import { type Centre, type KLine, klinesSchema, type MergedBar, type Stroke } from "@qi/chanlun";
-import { decode } from "@qi/core";
+import type { Consolidation } from "@qi/chanlun";
 import { describe, expect, it } from "vitest";
 import { profilesOf } from "../src/distribution.ts";
+import type { Bar } from "../src/schemas.ts";
+import { merged, run } from "./records.ts";
 
-// K-lines from (low, high), each up, a volume of 10 (over three rows, 10/3 in each)
-const axis = (ranges: readonly (readonly [number, number])[]): readonly KLine[] =>
-  result.getOrElse((): readonly KLine[] => [])(
-    decode(klinesSchema)(
-      ranges.map(([low, high], i) => ({
-        rno: i,
-        date: 60 * (i + 1),
-        up: true,
-        open: low,
-        high,
-        low,
-        close: high,
-        volume: 10,
-        confirmRno: 0,
-        stored: 1,
-      })),
-    ),
-  );
+// bars inside from (low, high), each up, a volume of 10 (over three rows, 10/3 in each)
+const axis = (ranges: readonly (readonly [number, number])[]): readonly Bar[] =>
+  ranges.map(([low, high], i) => ({ date: 60 * (i + 1), open: low, high, low, close: high, volume: 10 }));
 
-const line = (from: number, to: number, level = 0): Stroke => ({
+const centre = (start: number, end: number, level: number): Consolidation => ({
   level,
-  isUp: to > from,
-  startDate: from,
-  endDate: to,
-  high: 0,
-  low: 0,
-  startRno: 0,
-  endRno: 0,
-  stored: 1,
-  startBar: from,
-  endBar: to,
-});
-
-const centre = (startDate: number, endDate: number, level: number): Centre => ({
-  level,
-  startRno: 0,
-  startDate,
-  endRno: 0,
-  endDate,
-  entrance: true,
-  exit: true,
-  zg: 0,
-  zd: 0,
-  gg: 0,
-  ggRno: 0,
-  ggDate: startDate,
-  dd: 0,
-  ddRno: 0,
-  ddDate: startDate,
-  d: 0,
-  g: 0,
-  buy: "()",
-  tp0: "()",
-  tp0Rno: "()",
-  tp1: "()",
-  tp1Rno: "()",
-  tp2: "()",
-  tp2Rno: "()",
-  stored: 1,
-  startBar: startDate,
-  endBar: endDate,
-  ggBar: startDate,
-  ddBar: startDate,
+  start,
+  end,
+  zg: 1,
+  zd: 1,
+  gg: 1,
+  dd: 1,
 });
 
 // at a scale of 100, a price unit is a cent: the first three K-lines span 3 cents, all four 1,000
@@ -82,27 +30,20 @@ const xs = axis([
   [0, 1000],
 ]);
 
-// a merged bar a K-line, up: each its own K-line by the one map
-const merged: readonly MergedBar[] = xs.map((k, i) => ({
-  rno: i,
-  mno: i,
-  up: true,
-  high: k.high,
-  low: k.low,
-  startDate: i,
-  endDate: i,
-  stored: 1,
-}));
+// a merged bar a K-line, each represented by its own K-line
+const bars = xs.map((_, i) => merged({ index: i, mIndex: i, start: i, end: i, extremes: [i] }));
 
 describe("profilesOf", () => {
   const ps = profilesOf({ rows: 24 })({
     scale: 100,
     xAxis: xs,
-    merged,
-    strokes: [line(0, 2)],
-    duan: [line(0, 3)],
-    zoushi: [line(0, 2, 0)],
-    zhongshu: [centre(1, 3, 1)],
+    run: run({
+      merged: bars,
+      strokes: [{ start: 0, end: 2 }],
+      segments: [[{ start: 0, end: 3, level: 0 }], [{ start: 0, end: 2, level: 1 }]],
+      moves: [[{ start: 1, end: 3, level: 0 }]],
+      consolidations: [[], [centre(1, 3, 1)]],
+    }),
   });
 
   it("gives each kind and level that has items, none for the rest", () => {
@@ -110,6 +51,7 @@ describe("profilesOf", () => {
       ["bi", 0, 1],
       ["duan", 0, 1],
       ["duan", 1, 1],
+      ["zoushi", 0, 1],
       ["zhongshu", 1, 1],
     ]);
   });
@@ -128,45 +70,32 @@ describe("profilesOf", () => {
     });
   });
 
-  it("has 24 rows at most, and a 中枢 over its merged bars' K-lines", () => {
+  it("has 24 rows at most, and a 走势 and a 中枢 over their merged bars' K-lines", () => {
     expect(ps[1]?.items[0]?.up.length).toBe(24);
     expect(ps[3]?.items[0]).toMatchObject({ from: 1, to: 3 });
+    expect(ps[4]?.items[0]).toMatchObject({ from: 1, to: 3 });
   });
 
-  it("spans a line from its start merged bar's K-line, by the one map, not from the producer's date", () => {
-    // merged bar 1 over K-lines 1 and 2, up, its high 25 on both: the line starts at K-line 1, not at its date, 2
+  it("spans a line from the K-line that represents its start merged bar, not from that merged bar's start", () => {
+    // merged bar 1 over K-lines 1 and 2, represented by 2: the line starts at K-line 2
     const ks = axis([
       [10, 20],
       [12, 25],
       [15, 25],
       [11, 18],
     ]);
-    const bar = (
-      mno: number,
-      from: number,
-      to: number,
-      up: boolean,
-      low: number,
-      high: number,
-    ): MergedBar => ({
-      rno: to,
-      mno,
-      up,
-      high,
-      low,
-      startDate: from,
-      endDate: to,
-      stored: 1,
-    });
     const [p] = profilesOf({ rows: 24 })({
       scale: 100,
       xAxis: ks,
-      merged: [bar(0, 0, 0, true, 10, 20), bar(1, 1, 2, true, 12, 25), bar(2, 3, 3, false, 11, 18)],
-      strokes: [{ ...line(1, 2), startDate: 2, endDate: 3 }],
-      duan: [],
-      zoushi: [],
-      zhongshu: [],
+      run: run({
+        merged: [
+          merged({}),
+          merged({ mIndex: 1, index: 2, start: 1, end: 2, extremes: [2] }),
+          merged({ mIndex: 2, index: 3, up: false, start: 3, end: 3, extremes: [3] }),
+        ],
+        strokes: [{ start: 1, end: 2 }],
+      }),
     });
-    expect(p?.items[0]).toMatchObject({ from: 1, to: 3 });
+    expect(p?.items[0]).toMatchObject({ from: 2, to: 3 });
   });
 });

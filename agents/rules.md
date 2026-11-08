@@ -1,7 +1,8 @@
 # The rules of the visualization's work
 
 qi-v2-visualization: `@qi/chart`, the 缠论 drawing library, its one product, and the chart app, its own tool, copied
-here at version 1.8; version 2, online, is made here and released whole as 2.0.0, then 2.0.1 (`README.md`).
+here at version 1.8; version 2, online, is made here and released whole as 2.0.0, then 2.0.1; version 3, the structure
+on 缠论's contract `chanlun` 3.1.0, as 3.0.0 (`README.md`).
 These are its standing rules, for an agent of any kind; the format of this file is the kit's (`agents/README.md`).
 
 ## The session
@@ -17,8 +18,8 @@ Read the others only when the task touches them: `dev/ts/STYLE.md` before writin
 **The rules.**
 
 - **The owner's local file**: `todo.md`, never committed.
-- **The repository.** This folder is on `main`; its remote is `origin`, `zhifengzhang-sz/qi-v2-visualization` on GitHub, made ready to be public; pushed after a commit.
-- **What it takes, and from where**: the tools from the flake; 缠论's contract by the flake input `contracts`, the market data contract by `market`; `@qi/base` and `@qi/core` by the flake input `qi-v2-ts`, at its tag; the app's structure only as the published results, `chanlun-results`, by the digest `results.lock` names. The library takes what it draws from its caller, version 2's K-lines and their structure among them. No file of another project is reached by a path; everything taken is public, read with no login.
+- **The repository.** This folder is on `main`; its remote is `origin`, `zhifengzhang-sz/qi-v2-visualization` on GitHub, public; pushed after a commit.
+- **What it takes, and from where**: the tools from the flake; 缠论's contract by the flake input `contracts`, the market data contract by `market`; `@qi/base` and `@qi/core` by the flake input `qi-v2-ts`, at its tag; the contracts' vectors with them, the structure the checks draw. The library takes what it draws from its caller: the market data's K-lines and, beside them, a run of 缠论's contract over them. The app takes no published results until they name the K-lines they were made from. No file of another project is reached by a path; everything taken is public, read with no login.
 
 ## Every role
 

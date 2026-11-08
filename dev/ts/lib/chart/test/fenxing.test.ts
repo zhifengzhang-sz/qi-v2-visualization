@@ -1,19 +1,14 @@
-// 分型's drawing (fenxing.ts) through an engine that writes each primitive it is given as a line of text: a 分型 whose
-// start is confirmed is a circle at each K-line of its merged bar, above a top, below a bottom, in ink once its end is
-// confirmed, muted while not; one whose start is not confirmed, nothing.
+// 分型's drawing (fenxing.ts) through an engine that writes each primitive it is given as a line of text: a 分型 at
+// merged bar m is a top where m goes up and m + 1 down, a bottom where m goes down and m + 1 up, a circle at the K-line
+// that represents m (its `index`), above a top, below a bottom, in one colour; one the merged bars make neither,
+// nothing.
 
-import type { Fractal } from "@qi/chanlun";
 import { describe, expect, it } from "vitest";
 import { fenxing } from "../src/fenxing.ts";
 import type { Engine } from "../src/index.ts";
-import type { Locator } from "../src/locate.ts";
+import { locator } from "../src/locate.ts";
 import { fenxingDefaults } from "../src/schemas.ts";
-
-// a stand-in for the one map (locate.ts, tested there): each merged bar's K-lines as given
-const loc = (of: { readonly [mno: number]: readonly number[] }): Locator => ({
-  all: (mno) => of[mno] ?? [],
-  at: (mno) => of[mno]?.[0],
-});
+import { merged } from "./records.ts";
 
 const words: Engine<string> = {
   candle: (at, open, high, low, close) => `candle ${at} ${open} ${high} ${low} ${close}`,
@@ -24,35 +19,28 @@ const words: Engine<string> = {
   profile: (from, to) => `profile ${from}-${to}`,
 };
 
-const fx = (f: Partial<Fractal>): Fractal => ({
-  rno: 2,
-  date: 2,
-  mno: 1,
-  ding: true,
-  turningpoint: false,
-  high: 25,
-  low: 15,
-  confirmStartDate: 3,
-  confirmEndDate: 5,
-  stored: 1,
-  ...f,
-});
+// up, up, down, up: a top at 1, a bottom at 2; 0 is neither (0 and 1 both go up), and 3 has no merged bar after it
+const loc = locator([
+  merged({}),
+  merged({ mIndex: 1, index: 2, start: 1, end: 2, extremes: [1, 2] }),
+  merged({ mIndex: 2, index: 3, up: false, start: 3, end: 3, extremes: [3] }),
+  merged({ mIndex: 3, index: 4, start: 4, end: 4, extremes: [4] }),
+]);
 
 describe("分型's drawing", () => {
-  it("draws a circle at each K-line of its extreme, above a top, below a bottom", () => {
-    expect(
-      fenxing(words)(fenxingDefaults)(loc({ 1: [1, 2], 2: [3] }))([
-        fx({}),
-        fx({ ding: false, mno: 2, rno: 4, date: 4 }),
-      ]),
-    ).toEqual(["mark 1 above circle cl-ink", "mark 2 above circle cl-ink", "mark 3 below circle cl-ink"]);
+  it("draws a circle at its merged bar's index, above a top, below a bottom", () => {
+    expect(fenxing(words)(fenxingDefaults)(loc)([{ mIndex: 1 }, { mIndex: 2 }])).toEqual([
+      "mark 2 above circle cl-ink",
+      "mark 3 below circle cl-ink",
+    ]);
   });
 
-  it("mutes one whose end is not confirmed, and draws none whose start is not", () => {
-    const { confirmEndDate: _, ...open } = fx({});
-    const { confirmStartDate: __, ...unseen } = fx({ mno: 3 });
-    expect(fenxing(words)(fenxingDefaults)(loc({ 1: [1, 2], 3: [4] }))([open, unseen])).toEqual([
-      "mark 1 above circle cl-muted",
+  it("draws none the merged bars make neither a top nor a bottom", () => {
+    expect(fenxing(words)(fenxingDefaults)(loc)([{ mIndex: 0 }, { mIndex: 3 }])).toEqual([]);
+  });
+
+  it("draws it in its style's colour", () => {
+    expect(fenxing(words)({ ...fenxingDefaults, colour: "cl-muted" })(loc)([{ mIndex: 1 }])).toEqual([
       "mark 2 above circle cl-muted",
     ]);
   });

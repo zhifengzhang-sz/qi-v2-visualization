@@ -1,5 +1,5 @@
 # qi-v2-visualization (README.md): make targets, run inside `nix develop` (flake.nix, docs/process.md), which gives every
-# tool they call: Bun, Biome, Node, TeX, crane, git, gh, and the kit at dev/agents (make install); of the host, only
+# tool they call: Bun, Biome, Node, TeX, git, gh, and the kit at dev/agents (make install); of the host, only
 # what flake.nix's hostTools lets in (nix, for the packages and Chromium; wslpath and cmd.exe on WSL, xdg-open
 # elsewhere, to open a page). Outside it, make stops.
 ifneq ($(VISUALIZATION_SHELL),1)
@@ -14,7 +14,7 @@ S  := dev/scripts
 PY := python3
 AGENT_KIND ?= all
 
-.PHONY: help install agents agents-check run-start run-check verify locks-check products-check results-fetch chanlun-link market-link qi-v2-ts-link ts chart chart-settings chart-page-check chart-check chart-browser-check chart-online-check chart-static chart-package qi-chart-package
+.PHONY: help install agents agents-check run-start run-check check verify locks-check products-check chanlun-link market-link qi-v2-ts-link ts vectors chart chart-settings chart-page-check chart-check chart-browser-check chart-online-check chart-static chart-package qi-chart-package
 
 help: ## the targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | expand -t 22
@@ -47,21 +47,19 @@ run-check: ## after it: what changed against the role's writes (none: nothing; b
 	@test -n "$(ROLE)" || { echo "run-check: ROLE=<role> is needed"; exit 1; }
 	dev/agents/bin/kit run-check --role $(ROLE) $(if $(FILES),--files $(FILES)) --root .
 
+check: ## every check, one after another: each target of dev/scripts/verify.py's table (verify.py --all), in this project's shell
+	$(PY) $(S)/verify.py --all
+
 verify: ## the checks a commit requires (dev/scripts/verify.py): the targets that check the staged paths; VERIFY=--all for every one; the pre-commit hook runs it
 	$(PY) $(S)/verify.py $(VERIFY)
 
-locks-check: ## whether each lock is outdated: flake.lock's inputs (the kit's kit locks), results.lock against its image's tags on GHCR (dev/scripts/locks-check.py); changes nothing
+locks-check: ## whether each lock is outdated: flake.lock's inputs, each against its source (the kit's kit locks); changes nothing
 	@test -x dev/agents/bin/kit || { echo "locks-check: no kit at dev/agents: make install"; exit 1; }
-	dev/agents/bin/kit locks --root .; a=$$?; $(PY) $(S)/locks-check.py; b=$$?; exit $$((a | b))
+	dev/agents/bin/kit locks --root .
 
 products-check: ## whether PRODUCTS.md states what the project has (the kit's kit products)
 	@test -x dev/agents/bin/kit || { echo "products-check: no kit at dev/agents: make install"; exit 1; }
 	dev/agents/bin/kit products --root .
-
-# ---------------------------------------------------------------- the results (results.lock)
-
-results-fetch: ## the files of the image results.lock names, taken by its digest with crane, into .cache/results/<tag>/, each checked against the lock's sha256 and size; a file there and right left alone; a wrong file stops it, with its name; the image is public: no login, and no Docker
-	$(PY) $(S)/results.py fetch
 
 # ---------------------------------------------------------------- the TypeScript (dev/ts/STYLE.md)
 
@@ -97,23 +95,24 @@ CHART_ENGINES = $(subst $(comma), ,$(or $(ENGINE),tv$(comma)d3fc))
 CHART_TIKZ = $(filter tikz,$(CHART_ENGINES))
 CHART_OPEN = $(word 1,$(patsubst tv,chart.html,$(patsubst d3fc,chart-d3fc.html,$(patsubst tikz,chart.pdf,$(CHART_ENGINES)))))
 CHART_CHECK := .reports/charts/chart-check
-# the set the checks draw, 4,000 minutes of BTCUSDT
-CHART_SET := btcusdt-1m-test
+# the test data's bars, 4,000 minutes of BTCUSDT, and the contract's vectors in the app's input form (make vectors)
+CHART_BARS := INPUT=test/data/BTCUSDT-1m.csv REQUEST=test/data/request.json
+CHART_VECTORS := .reports/vectors
+CHART_RUN := INPUT=$(CHART_VECTORS)/bars.csv REQUEST=$(CHART_VECTORS)/request.json RUN=$(CHART_VECTORS)/run.json TITLE=vectors
 
-chart: ## a chart, by the chart app: SET=<set>, a set of results.lock, fetched (make results-fetch), its K-lines with their structure; or INPUT=bars.csv REQUEST=request.json CHANLUN=none, the bars alone (their form: dev/ts/app/chart/README.md, Its input); each [OUT=DIR, else .reports/charts/<SET or INPUT's name>-<LEVEL>] [TITLE=]; or DIR=, the pages of a run made. [ENGINE=tv,d3fc,tikz] [RANGE=all|FROM-TO, the picture's] [LEVEL=all|0|1…] [PERIODS=NAME=DIR,…] [CONFIG=FILE] [MARKS=FILE] [WINDOW=FROM:TO|LAST=Ny|Nm] [ONLINE=N, an online page of the bars alone: all but the last N drawn whole, then those N one at a time] [OPEN=0]
-	@test "$(words $(if $(SET),set) $(if $(DIR),dir) $(if $(INPUT)$(REQUEST)$(CHANLUN),bars))" = 1 || { echo "chart: one of SET=<set> (make chart SET=$(CHART_SET)), INPUT= REQUEST= CHANLUN=none (the bars alone), DIR= (a run made)"; exit 1; }
-	@test -z "$(INPUT)$(REQUEST)$(CHANLUN)" -o \( -n "$(INPUT)" -a -n "$(REQUEST)" -a "$(CHANLUN)" = none \) || { echo "chart: the bars alone are INPUT= REQUEST= CHANLUN=none; a structure comes only from a set, SET=<set>"; exit 1; }
+vectors: ## the contract's vectors in the chart app's input form (dev/scripts/vectors.ts), from the flake input contracts at its tag: .reports/vectors/bars.csv, the 4,000 bars its bars.ts makes up, not of any market; request.json, their scale and source; run.json, 缠论's records over them
+	@rm -rf $(CHART_VECTORS) && bun $(S)/vectors.ts $(CURDIR)/$(CHART_VECTORS)
+
+chart: ## a chart, by the chart app: INPUT=bars.csv REQUEST=request.json, the bars (their form: dev/ts/app/chart/README.md, Its input), and RUN=run.json, 缠论's records over them, a run of the contract chanlun, where there is one, [OUT=DIR, else .reports/charts/<INPUT's name>-<LEVEL>] [TITLE=]; or DIR=, the pages of a run made. [ENGINE=tv,d3fc,tikz] [RANGE=all|FROM-TO, the picture's] [LEVEL=all|0|1…] [PERIODS=NAME=DIR,…] [CONFIG=FILE] [MARKS=FILE] [WINDOW=FROM:TO|LAST=Ny|Nm, of bars alone] [ONLINE=N, an online page of bars alone: all but the last N drawn whole, then those N one at a time] [OPEN=0]
+	@test "$(words $(if $(DIR),dir) $(if $(INPUT)$(REQUEST)$(RUN),bars))" = 1 || { echo "chart: one of INPUT= REQUEST= [RUN=] (the bars, and 缠论's records over them), DIR= (a run made)"; exit 1; }
+	@test -z "$(INPUT)$(REQUEST)$(RUN)" -o \( -n "$(INPUT)" -a -n "$(REQUEST)" \) || { echo "chart: the bars are INPUT= REQUEST=, and RUN= is beside them"; exit 1; }
 	@for e in $(CHART_ENGINES); do case $$e in tv|d3fc|tikz) ;; *) echo "chart: ENGINE=$(ENGINE): $$e is not an engine (tv, d3fc, tikz)"; exit 1 ;; esac; done; \
 	test "$(words $(CHART_ENGINES))" = "$(words $(sort $(CHART_ENGINES)))" || { echo "chart: ENGINE=$(ENGINE): each engine once"; exit 1; }
 	@test -z "$(RANGE)" -o -n "$(CHART_TIKZ)" || { echo "chart: RANGE= is the picture's: give ENGINE= with tikz"; exit 1; }
 	@if [ -n "$(DIR)" ]; then d=$(abspath $(DIR)); test -d $$d || { echo "chart: $$d is not a run"; exit 1; }; made=""; title=""; \
-	elif [ -n "$(SET)" ]; then s=$$($(PY) $(S)/results.py set $(SET)) || exit 1; f=$${s% *}; \
-	  d=$(abspath $(or $(OUT),.reports/charts/$(SET)-$(or $(LEVEL),all))); \
-	  if [ "$${f#$$d/}" != "$$f" ]; then echo "chart: OUT=$(OUT) holds the set's file, and the run's folder is made again"; exit 1; fi; \
-	  rm -rf $$d && mkdir -p $$d && made="--results $$f --scale $${s##* }"; title="$(TITLE)"; \
 	else d=$(abspath $(or $(OUT),.reports/charts/$(basename $(notdir $(INPUT)))-$(or $(LEVEL),all))); \
 	  rm -rf $$d && mkdir -p $$d && cp $(abspath $(INPUT)) $$d/input.csv && cp $(abspath $(REQUEST)) $$d/request.json && \
-	  made="--input $$d/input.csv --request $$d/request.json"; title="$(or $(TITLE),$(notdir $(INPUT)))"; fi && \
+	  made="--input $$d/input.csv --request $$d/request.json$(if $(RUN), --run $(abspath $(RUN)))"; title="$(or $(TITLE),$(notdir $(INPUT)))"; fi && \
 	lwc=$$(nix build .#lightweight-charts --no-link --print-out-paths) && fc=$$(nix build .#d3fc --no-link --print-out-paths) && \
 	mkdir -p $(CURDIR)/.reports/engine && \
 	(cd dev/ts && bun build app/chart/src/edge/browser.ts --target=browser --format=iife --minify --outfile $(CURDIR)/.reports/chart-browser.js >/dev/null && \
@@ -133,15 +132,17 @@ chart-settings: ## the chart app's settings, every value, the defaults among the
 chart-page-check: ## each page of the runs in .reports/charts (or DIR=, one run), its own script run on its input as the browser runs it, its description against the command's (dev/ts/app/chart/src/edge/check-page.ts)
 	@cd dev/ts && bun app/chart/src/edge/check-page.ts $$(ls $(if $(DIR),$(abspath $(DIR)),$(CURDIR)/.reports/charts/*)/chart.html $(if $(DIR),$(abspath $(DIR)),$(CURDIR)/.reports/charts/*)/chart-d3fc.html 2>/dev/null)
 
-chart-check: ## make chart at all levels, at level 0 and at level 1, on the set btcusdt-1m-test (make results-fetch), not opened: each writes chart.html and chart-d3fc.html, all levels its static picture too, of the last 2,000 K-lines (chart.tex, chart.pdf by XeLaTeX), and the marks of test/data/marks.json by every engine; each page's own script against the command's description; the engines' scripts in headless Chromium (make chart-browser-check); the online page (make chart-online-check)
-	@for l in all 0 1; do $(MAKE) -s chart SET=$(CHART_SET) OUT=$(CHART_CHECK)-$$l LEVEL=$$l OPEN=0 $$([ $$l = all ] && echo ENGINE=tv,d3fc,tikz RANGE=2000-3999 MARKS=test/data/marks.json) >/dev/null || exit 1; \
-	  for f in chart.html chart-d3fc.html $$([ $$l = all ] && echo chart.tex chart.pdf); do test -s $(CHART_CHECK)-$$l/$$f || { echo "chart-check: no $$f at $$l"; exit 1; }; done; done; \
-	cd dev/ts && bun app/chart/src/edge/check-page.ts $(foreach l,all 0 1,$(CURDIR)/$(CHART_CHECK)-$(l)/chart.html $(CURDIR)/$(CHART_CHECK)-$(l)/chart-d3fc.html) >/dev/null || { echo "chart-check: a page's own script gives another description: make chart-page-check"; exit 1; }; \
-	$(MAKE) -C $(CURDIR) -s chart-browser-check DIR=$(CURDIR)/$(CHART_CHECK)-all >/dev/null || { echo "chart-check: the engines' scripts fail in the browser: make chart-browser-check"; exit 1; }; \
-	$(MAKE) -C $(CURDIR) -s chart-online-check >/dev/null || { echo "chart-check: the online page fails in the browser: make chart-online-check"; exit 1; }; \
-	echo "chart-check: all levels, level 0 and level 1 drawn, the static picture compiled; each page's own script gives the command's description; the engines' scripts checked in the browser; the online page checked in the browser"
+chart-check: ## make chart, not opened, on the test data's bars at all levels with the marks of test/data/marks.json, every engine, its static picture of the last 2,000 K-lines; and on the contract's vectors (make vectors), 缠论's run beside its bars, at all levels with its picture of the last 2,000, at level 0 and at level 1: each writes chart.html and chart-d3fc.html, all levels chart.tex and chart.pdf too; each page's own script against the command's description; the engines' scripts in headless Chromium on both all-levels runs (make chart-browser-check); the online page (make chart-online-check)
+	@$(MAKE) -s vectors >/dev/null || { echo "chart-check: the vectors not written: make vectors"; exit 1; }; \
+	$(MAKE) -s chart $(CHART_BARS) OUT=$(CHART_CHECK)-bars OPEN=0 ENGINE=tv,d3fc,tikz RANGE=2000-3999 MARKS=test/data/marks.json >/dev/null || { echo "chart-check: the bars not drawn"; exit 1; }; \
+	for l in all 0 1; do $(MAKE) -s chart $(CHART_RUN) OUT=$(CHART_CHECK)-$$l LEVEL=$$l OPEN=0 $$([ $$l = all ] && echo ENGINE=tv,d3fc,tikz RANGE=2000-3999) >/dev/null || { echo "chart-check: the vectors at $$l not drawn"; exit 1; }; done; \
+	for r in bars all 0 1; do for f in chart.html chart-d3fc.html $$([ $$r = bars -o $$r = all ] && echo chart.tex chart.pdf); do test -s $(CHART_CHECK)-$$r/$$f || { echo "chart-check: no $$f in $(CHART_CHECK)-$$r"; exit 1; }; done; done; \
+	(cd dev/ts && bun app/chart/src/edge/check-page.ts $(foreach r,bars all 0 1,$(CURDIR)/$(CHART_CHECK)-$(r)/chart.html $(CURDIR)/$(CHART_CHECK)-$(r)/chart-d3fc.html) >/dev/null) || { echo "chart-check: a page's own script gives another description: make chart-page-check"; exit 1; }; \
+	for r in bars all; do $(MAKE) -s chart-browser-check DIR=$(CURDIR)/$(CHART_CHECK)-$$r >/dev/null || { echo "chart-check: the engines' scripts fail in the browser: make chart-browser-check DIR=$(CHART_CHECK)-$$r"; exit 1; }; done; \
+	$(MAKE) -s chart-online-check >/dev/null || { echo "chart-check: the online page fails in the browser: make chart-online-check"; exit 1; }; \
+	echo "chart-check: the bars with the marks and the vectors' run at all levels, level 0 and level 1 drawn, the static pictures compiled; each page's own script gives the command's description; the engines' scripts checked in the browser; the online page checked in the browser"
 
-chart-browser-check: ## the engines' browser scripts checked in headless Chromium (dev/scripts/chart-browser-check.ts): each page of the run DIR (chart-check's, all levels, where none is given) loaded with no exception, its legend whole
+chart-browser-check: ## the engines' browser scripts checked in headless Chromium (dev/scripts/chart-browser-check.ts): each page of the run DIR (chart-check's vectors at all levels, where none is given) loaded with no exception, its legend whole
 	@d=$(abspath $(or $(DIR),$(CHART_CHECK)-all)); test -s $$d/chart.html || { echo "chart-browser-check: no pages in $$d"; exit 1; }; \
 	chromium=$$(nix build --inputs-from . nixpkgs#chromium --no-link --print-out-paths)/bin/chromium; profile=$$(mktemp -d); \
 	$$chromium --headless=new --no-sandbox --disable-gpu --remote-debugging-port=9339 --user-data-dir=$$profile about:blank >/dev/null 2>&1 & pid=$$!; \
@@ -151,17 +152,17 @@ CHART_ONLINE := .reports/online
 chart-online-check: ## the online page in headless Chromium (docs/designs/design-chart-online-2026-11-08.md, How the release is checked, 3; dev/scripts/chart-online-check.ts): the test data's bars alone with its last 100 K-lines one at a time, and its first 60 begun with one, each beside the same bars drawn whole, in .reports/online/: each replay run to its end with no fault, its page data the batch's and the whole page's, its screenshot the whole page's at the latest K-lines; the view followed from the latest and held from the first 100; an update's cost
 	@rm -rf $(CHART_ONLINE) && mkdir -p $(CHART_ONLINE) && head -61 test/data/BTCUSDT-1m.csv > $(CHART_ONLINE)/bars60.csv && \
 	for r in "long test/data/BTCUSDT-1m.csv 100" "long-whole test/data/BTCUSDT-1m.csv" "short $(CHART_ONLINE)/bars60.csv 59" "short-whole $(CHART_ONLINE)/bars60.csv"; do set -- $$r; \
-	  $(MAKE) -s chart INPUT=$$2 REQUEST=test/data/request.json CHANLUN=none OUT=$(CHART_ONLINE)/$$1 OPEN=0 $${3:+ONLINE=$$3} >/dev/null || { echo "chart-online-check: the run $$1 not drawn"; exit 1; }; done; \
+	  $(MAKE) -s chart INPUT=$$2 REQUEST=test/data/request.json OUT=$(CHART_ONLINE)/$$1 OPEN=0 $${3:+ONLINE=$$3} >/dev/null || { echo "chart-online-check: the run $$1 not drawn"; exit 1; }; done; \
 	chromium=$$(nix build --inputs-from . nixpkgs#chromium --no-link --print-out-paths)/bin/chromium; profile=$$(mktemp -d); \
 	$$chromium --headless=new --no-sandbox --disable-gpu --hide-scrollbars --remote-debugging-port=9341 --user-data-dir=$$profile about:blank >/dev/null 2>&1 & pid=$$!; sleep 2; \
 	bun $(S)/chart-online-check.ts 9341 $(CURDIR)/$(CHART_ONLINE); status=$$?; kill $$pid; wait $$pid 2>/dev/null; rm -rf $$profile; exit $$status
 
 CHART_STATIC := .reports/static
-chart-static: ## the static charts byte for byte (docs/designs/design-chart-online-2026-11-08.md, How the release is checked, 2): every set of results.lock (make results-fetch) at all levels, level 0 and level 1, btcusdt-1m-test's picture and marks as chart-check's, and the test data's bars alone, into .reports/static/; each page's data and screenshot in headless Chromium (dev/scripts/chart-static.ts) and each picture, by sha256, against dev/scripts/chart-static.sha256; RECORD=1 writes that file instead
-	@rm -rf $(CHART_STATIC) && mkdir -p $(CHART_STATIC) && \
-	for s in $$($(PY) $(S)/results.py sets); do for l in all 0 1; do \
-	  $(MAKE) -s chart SET=$$s OUT=$(CHART_STATIC)/$$s-$$l LEVEL=$$l OPEN=0 $$([ $$s = $(CHART_SET) ] && [ $$l = all ] && echo ENGINE=tv,d3fc,tikz RANGE=2000-3999 MARKS=test/data/marks.json) >/dev/null || { echo "chart-static: $$s at $$l not drawn"; exit 1; }; done; done; \
-	$(MAKE) -s chart INPUT=test/data/BTCUSDT-1m.csv REQUEST=test/data/request.json CHANLUN=none OUT=$(CHART_STATIC)/bars OPEN=0 >/dev/null || { echo "chart-static: the bars alone not drawn"; exit 1; }; \
+chart-static: ## the static charts by hash (docs/designs/design-chart-chanlun-3-2026-11-09.md, How the release is checked, 3): the test data's bars alone, the same bars with the marks and the picture as chart-check's, and the contract's vectors (make vectors) at all levels, level 0 and level 1, into .reports/static/; each page's data and screenshot in headless Chromium (dev/scripts/chart-static.ts) and each picture, by sha256, against dev/scripts/chart-static.sha256; RECORD=1 writes that file instead
+	@rm -rf $(CHART_STATIC) && mkdir -p $(CHART_STATIC) && { $(MAKE) -s vectors >/dev/null || { echo "chart-static: the vectors not written: make vectors"; exit 1; }; } && \
+	$(MAKE) -s chart $(CHART_BARS) OUT=$(CHART_STATIC)/bars OPEN=0 >/dev/null || { echo "chart-static: the bars alone not drawn"; exit 1; }; \
+	$(MAKE) -s chart $(CHART_BARS) OUT=$(CHART_STATIC)/bars-marks OPEN=0 ENGINE=tv,d3fc,tikz RANGE=2000-3999 MARKS=test/data/marks.json >/dev/null || { echo "chart-static: the bars with the marks not drawn"; exit 1; }; \
+	for l in all 0 1; do $(MAKE) -s chart $(CHART_RUN) OUT=$(CHART_STATIC)/vectors-$$l LEVEL=$$l OPEN=0 $$([ $$l = all ] && echo ENGINE=tv,d3fc,tikz RANGE=2000-3999) >/dev/null || { echo "chart-static: the vectors at $$l not drawn"; exit 1; }; done; \
 	chromium=$$(nix build --inputs-from . nixpkgs#chromium --no-link --print-out-paths)/bin/chromium; profile=$$(mktemp -d); \
 	$$chromium --headless=new --no-sandbox --disable-gpu --hide-scrollbars --remote-debugging-port=9340 --user-data-dir=$$profile about:blank >/dev/null 2>&1 & pid=$$!; sleep 2; \
 	bun $(S)/chart-static.ts 9340 $(CURDIR)/$(CHART_STATIC) $$(ls $(CURDIR)/$(CHART_STATIC)/*/chart.html $(CURDIR)/$(CHART_STATIC)/*/chart-d3fc.html) > $(CHART_STATIC)/pages.sha256; status=$$?; kill $$pid; rm -rf $$profile; \
@@ -171,18 +172,18 @@ chart-static: ## the static charts byte for byte (docs/designs/design-chart-onli
 	else diff $(S)/chart-static.sha256 $(CHART_STATIC)/sha256 >/dev/null || { echo "chart-static: differs from $(S)/chart-static.sha256:"; diff $(S)/chart-static.sha256 $(CHART_STATIC)/sha256 | grep '^[<>]' | head -20; exit 1; }; \
 	echo "chart-static: $$(wc -l < $(CHART_STATIC)/sha256) hashes, the same as $(S)/chart-static.sha256"; fi
 
-chart-package: ## the flake package chart (dev/ts/app/chart/README.md) built and run as a taker runs it: its bin/chart on the set btcusdt-1m-test (make results-fetch), the file and the scale on its command line, into .reports/chart-package/run/, then the same pages from that run made, then the test data's bars alone; its README in share/doc/chart; chart-settings every value
-	@s=$$($(PY) $(S)/results.py set $(CHART_SET)) || exit 1; \
+chart-package: ## the flake package chart (dev/ts/app/chart/README.md) built and run as a taker runs it: its bin/chart on the test data's bars, their file and request on its command line, into .reports/chart-package/run/, then the same pages from that run made; then on the contract's vectors (make vectors), 缠论's run beside its bars; its README in share/doc/chart; chart-settings every value
+	@$(MAKE) -s vectors >/dev/null || { echo "chart-package: the vectors not written: make vectors"; exit 1; }; \
 	out=$$(nix build .#chart --no-link --print-out-paths) && d=.reports/chart-package && rm -rf $$d && mkdir -p $$d && \
-	$$out/bin/chart $$d/run --results $${s% *} --scale $${s##* } --title chart-package >/dev/null && \
+	$$out/bin/chart $$d/run --input test/data/BTCUSDT-1m.csv --request test/data/request.json --title chart-package >/dev/null && \
 	test -s $$d/run/chart.html && test -s $$d/run/chart-d3fc.html && test -s $$out/share/doc/chart/README.md && \
-	mkdir $$d/again && cp $$d/run/run.json $$d/run/meta.json $$d/again/ && $$out/bin/chart $$d/again >/dev/null && \
+	mkdir $$d/again && cp $$d/run/in.csv $$d/run/meta.json $$d/again/ && $$out/bin/chart $$d/again >/dev/null && \
 	cmp -s $$d/again/chart.html $$d/run/chart.html && cmp -s $$d/again/chart-d3fc.html $$d/run/chart-d3fc.html && \
-	$$out/bin/chart $$d/bars --input test/data/BTCUSDT-1m.csv --request test/data/request.json >/dev/null && \
-	test -s $$d/bars/chart.html && test -s $$d/bars/chart-d3fc.html && \
+	$$out/bin/chart $$d/vectors --input $(CHART_VECTORS)/bars.csv --request $(CHART_VECTORS)/request.json --run $(CHART_VECTORS)/run.json >/dev/null && \
+	test -s $$d/vectors/chart.html && test -s $$d/vectors/chart-d3fc.html && \
 	$$out/bin/chart-settings | grep -q '^\[picture\]' && \
-	(cd dev/ts && bun app/chart/src/edge/check-page.ts $(CURDIR)/$$d/run/chart.html $(CURDIR)/$$d/run/chart-d3fc.html $(CURDIR)/$$d/bars/chart.html $(CURDIR)/$$d/bars/chart-d3fc.html >/dev/null) && \
-	echo "chart-package: $$out built and run on the set $(CHART_SET), the same pages from the run made, the bars alone drawn, its README in share/doc/chart, chart-settings every value"
+	(cd dev/ts && bun app/chart/src/edge/check-page.ts $(CURDIR)/$$d/run/chart.html $(CURDIR)/$$d/run/chart-d3fc.html $(CURDIR)/$$d/vectors/chart.html $(CURDIR)/$$d/vectors/chart-d3fc.html >/dev/null) && \
+	echo "chart-package: $$out built and run on the test data's bars, the same pages from the run made, the vectors' run beside its bars drawn, its README in share/doc/chart, chart-settings every value"
 
 qi-chart-package: ## the flake package qi-chart (@qi/chart as source with what it takes, dev/ts/lib/chart/README.md) taken as a taker takes it: its node_modules linked into .reports/qi-chart-package/, a taker's script (dev/scripts/qi-chart-taker.ts) typechecked and run from it alone
 	@out=$$(nix build .#qi-chart --no-link --print-out-paths) && d=.reports/qi-chart-package && rm -rf $$d && mkdir -p $$d/node_modules/@qi && \

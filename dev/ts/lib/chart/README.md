@@ -2,19 +2,33 @@
 
 `@qi/chart` draws a K-line chart with its 缠论 structure (包含, 分型, 笔, 线段, 走势, 中枢, by level), the volume, the price
 distribution (成交量分布) and a caller's indicators, in two engines for the browser, TradingView's Lightweight Charts and
-D3/d3fc, and as a TikZ picture for a PDF. It takes its contracts (the components, each a Zod schema) and draws them; it
-computes no structure: the caller gives it. It has two components: the batch, which draws a chart whole, and the online
-one, which takes a chart one K-line at a time and gives each engine its change. Its design: this project's
-`docs/designs/design-chart-lib-2026-10-24.md`; the chart app that uses it, its `dev/ts/app/chart`. This page is shipped
-in the package as its `README.md`.
+D3/d3fc, and as a TikZ picture for a PDF. It takes its contracts (the components, each a Zod schema) and draws them: the
+market data's K-lines and, beside them, a run of 缠论's contract over those K-lines; it computes no structure: the caller
+gives it. It has two components: the batch, which draws a chart whole, and the online one, which takes a chart one
+K-line at a time and gives each engine its change. Its design: this project's `docs/designs/design-chart-lib-2026-10-24.md`
+and, for the structure, `docs/designs/design-chart-chanlun-3-2026-11-09.md`; the chart app that uses it, its
+`dev/ts/app/chart`. This page is shipped in the package as its `README.md`, with the repository's `LICENSE`: the
+package is licensed under the Apache License 2.0.
 
 ## Changes
 
+- **3.0.0** (2026-11-09), version 3, the structure on 缠论's contract `chanlun` 3.1.0 (the tag `qi-chart-3.0.0`; this
+  project's `docs/designs/design-chart-chanlun-3-2026-11-09.md`): a chart's 缠论 data is a run of the contract
+  (`run`, `@qi/chanlun`'s `Run`, its parts by level as the contract holds them) in place of `merged`, `fractals`,
+  `strokes`, `duan`, `zoushi` and `zhongshu`; the x-axis is the market data's K-lines alone (`xAxisSchema`), beside
+  which the run is, its positions their indexes; `located` refuses a run whose positions are not the K-lines', whose
+  extremes do not hold its extreme, or whose records name a merged bar it does not have; the records drawn as the
+  contract reads them (a merged bar's `index` and `extremes`; a 分型's kind, a line's direction and prices from the
+  merged bars), each 线段, 走势 and 中枢 in the group of its own level, 成交量分布 for each level's 走势 too; the
+  styles: 分型's one `colour` in place of `confirmed` and `unconfirmed`, 走势's `flat` added; the palette's names
+  (The page); `@qi/chanlun` is `chanlun-3.1.0`'s, nothing of `chanlun-1.1.0` held; the licence named, `LICENSE` in the
+  package.
 - **2.0.1** (2026-11-08), its files, not its code (the tag `qi-chart-2.0.1`): `@qi/base` and `@qi/core` are
   `qi-v2-ts` 0.1.0's (the tag `qi-v2-ts-0.1.0`), the same code with their comments from their home, and with them
   smol-toml and Node's types, at the same versions; this page and the sources' comments name no other project but
   those they take.
-- **2.0.0** (2026-11-08), version 2, online, the first release here (the tag `qi-chart-2.0.0`; this project's
+- **2.0.0** (2026-11-08), version 2, online, the first release here (its tag, `qi-chart-2.0.0`, of this project's
+  earlier history, which its repository does not hold; this project's
   `docs/designs/design-chart-online-2026-11-08.md`): the online component: `online`, `complete`, `forming`, the tails
   `tvTail` and `d3fcTail` with `tvApplied` and `d3fcApplied`, and the page's handle `UPDATE` from both engines' scripts,
   for K线, 成交量 and add-ons drawing with series; the K-lines a caller gives are a contract's, 缠论's (`chanlun-1.1.0`) or
@@ -41,7 +55,7 @@ Source, TypeScript, for a taker's Bun or TypeScript, as a `node_modules`:
 | Module | What |
 |---|---|
 | `@qi/chart` | the library (`src/`) and the engines' browser scripts: their TypeScript (`engine/*.ts`) and, built from it, the scripts a page loads (`engine/tv.js`, `engine/d3fc.js`) |
-| `@qi/chanlun` | 缠论's contract, `chanlun-1.1.0` (`qi-v2-contracts`, its `SPEC.md`, shipped as the package's): the K-line, the merged bar, 分型, the lines, 中枢, and a run's records as JSON |
+| `@qi/chanlun` | 缠论's contract, `chanlun-3.1.0` (`qi-v2-contracts`, its `SPEC.md`): what the algorithm makes beyond the K-line, the merged bar, 分型, the lines (笔, 线段, 走势), 中枢, and the run that holds them, with its JSON (`decodeRun`, `encodeRun`) |
 | `@qi/market` | the market data contract, `market-1.1.0` (`qi-v2-contracts`, its `SPEC.md`): the K-line and the ongoing K-line, and their JSON (`decodeAs`, `decodeOngoingKLine`) |
 | `@qi/base` | `Result`, `Task`, `pipe`, the errors (`qi-v2-ts` 0.1.0's, its `README.md`) |
 | `@qi/core` | `decode` (a value through a Zod schema, as a `Result`), the settings' TOML (`qi-v2-ts` 0.1.0's) |
@@ -57,7 +71,7 @@ standalone build) and `d3fc` (D3 7.9.0 and d3fc 15.2.13, their browser bundles).
 **1. The flake.** Pin this project's release in the taker's `flake.nix`, by its tag, read over HTTPS with no login:
 
 ```nix
-inputs.visualization.url = "github:zhifengzhang-sz/qi-v2-visualization?ref=qi-chart-2.0.1";
+inputs.visualization.url = "github:zhifengzhang-sz/qi-v2-visualization?ref=qi-chart-3.0.0";
 ```
 
 The pin is the taker's `flake.lock`; another release is taken by its tag.
@@ -86,13 +100,23 @@ each engine's page data), the handles' types, and the DSL an add-on or an engine
 contracts are `@qi/chanlun`'s, the market data's `@qi/market`'s, imported from there.
 
 **The components.** A chart is its components (`Components`, `src/drawing.ts`): its title, the prices' scale (a
-price is held as a whole number, the price times it), its options, the x-axis (`xAxisSchema`, the K-lines in time
-order, all of one contract: 缠论's K-lines, or the market data's, which `located` makes bars at the scale, a power of
-ten from 1 to 1,000,000, each date a whole second, each price read exactly from its digits, a finer one refused), and
-the 缠论 data on merged bars, by their numbers, each in its contract of `@qi/chanlun`: the merged bars
-(`mergedBarSchema`), the 分型 (`fractalSchema`), the 笔 and 线段 (`strokeSchema`), the 走势 and 中枢 of every level
-(`strokeSchema`, `centreSchema`); and the caller's add-ons (`addOn`). Each enters through its schema (`decode` of `@qi/core`); the
-library checks that every merged bar a configuration names is one of them (`located`) before it draws.
+K-line's price is held inside as a whole number, the price times it), its options, the x-axis (`xAxisSchema`, the
+market data's K-lines in time order, which `located` makes bars at the scale, a power of ten from 1 to 1,000,000, each
+index one after the one before, each date a whole second, each price read exactly from its digits, a finer one
+refused), `run`, a run of 缠论's contract over those K-lines (`@qi/chanlun`'s `Run`: its merged bars, 分型, 笔, and by
+level its 线段, 走势 and 中枢; a run of no record for a chart of bars alone), and the caller's add-ons (`addOn`). A
+position of the run is the K-line whose `index` it is. The caller decodes each through its contract (`decodeRun`,
+`decode` of `@qi/core` with a schema); before it draws, the library checks the run against the K-lines given beside it
+(`located`): every position of a merged bar is one of the K-lines, each K-line of a merged bar's `extremes` holds its
+extreme (its high when it goes up, its low when down), and every merged bar a record names is the run's; a fault
+refuses the chart whole.
+
+**How the records are drawn**, as the contract reads them: 包含, a merged bar of two K-lines or more, a box over its
+K-lines and a mark at each K-line of its `extremes`; a 分型 at merged bar m a circle at m's `index`, above a top (m up,
+m + 1 down), below a bottom (m down, m + 1 up), none where the merged bars make it neither; a 笔, 线段 or 走势 a line from
+its start merged bar's `index`, at that merged bar's extreme, to its end merged bar's, a 走势 up, down or `flat` by its
+ends; a 中枢 two boxes, DD to GG and ZD to ZG, from its start merged bar's `index` to its end's; each dashed while it
+has no `confirmEnd`. Level L's group holds its 线段, 走势 and 中枢; level 0's also 包含, 分型 and 笔.
 
 **The descriptions.** `tvChart(c, shown)` gives the tv engine's page data (`chart`, `qi-chart/1`; `layers`,
 `qi-layers/1`); `d3fcChart(c, shown)` the d3fc engine's (`qi-d3fc/1`); `tikzChart(c, options, shown, marks)` a TikZ
@@ -130,8 +154,8 @@ import { complete, forming, online, tvChart, tvTail } from "@qi/chart";
 import { decodeAs, decodeOngoingKLine, klineSchema } from "@qi/market";
 
 // the batch first: the history drawn whole, its page data given to the page for engine/tv.js
-const none = { merged: [], fractals: [], strokes: [], duan: [], zoushi: [], zhongshu: [] };
-const c = { title, scale: 100, xAxis: history, ...none, addons };
+const none = { merged: [], fractals: [], strokes: [], segments: [], moves: [], consolidations: [] };
+const c = { title, scale: 100, xAxis: history, run: none, addons };
 // tvChart(c) → { chart, layers }: CHART and LAYERS, then engine/tv.js draws them and gives UPDATE
 // then the online component, from the same components: each K-line as it comes, its change given to UPDATE
 // online(c) → o; for an ongoing K-line's text: decodeOngoingKLine(text) → forming(o, k) → step;
@@ -139,7 +163,8 @@ const c = { title, scale: 100, xAxis: history, ...none, addons };
 ```
 
 **The page.** An engine's browser script draws its description in a page that gives it, as globals: `CHART` (and
-`LAYERS` for tv), `PALETTE` (each palette name, its light and its dark colour, `#RRGGBB`), and optionally `MARKS`
+`LAYERS` for tv), `PALETTE` (each palette name, its light and its dark colour, `#RRGGBB`: the names below, and every
+other name its options and marks give), and optionally `MARKS`
 (`qi-marks/1`, `src/marking.ts`: texts, dots, lines and boxes on the chart, decoded by `marksSchema` and checked against
 the chart's K-lines by `marksOn`); and an element `#chart`. The tv page
 loads Lightweight Charts' standalone build before `engine/tv.js`; the d3fc page, D3's and d3fc's bundles before
@@ -154,6 +179,23 @@ loads Lightweight Charts' standalone build before `engine/tv.js`; the d3fc page,
   following the newest K-line only while it is in view (tv by Lightweight Charts' `update`, and drawn again whole when a
   chart of one K-line is given its second; d3fc drawn again from its data once a frame); the page's pointer callbacks
   kept.
+
+**The palette's names** the library uses, in the engines' scripts and in the options' defaults, and what each colours
+(the page gives each its light and its dark colour):
+
+| Name | What it colours |
+|---|---|
+| `cl-bg` | the page's background, in both engines and the picture; the halo behind a mark's text; the text on d3fc's tags (the last price, the pointer's time and price) |
+| `cl-ink` | the page's text, in both engines and the picture; a 分型 (`fx`); the point of control of 成交量分布; a legend's entry with no colour of its own |
+| `cl-muted` | d3fc's axes and their labels, its subgraphs' rules and labels, its price under the pointer; the picture's frames and labels; the K-lines of the shown 成交量分布; 成交量's series; a 走势 whose ends are level (`zoushi.flat`); the levels from 3 up (`layout.levels`) |
+| `cl-state-fill` | the grid, in both engines and the picture |
+| `cl-up` | a K-line closing at or above its open, its 成交量; 包含 going up; a 走势 going up; 成交量分布's up volume |
+| `cl-down` | a K-line closing below its open, its 成交量; 包含 going down; a 走势 going down; 成交量分布's down volume |
+| `cl-stroke` | a 笔 (`bi`) |
+| `cl-level` | a 线段 (`duan`) |
+| `cl-center` | level 0: its 中枢 and its group's name (`layout.levels`) |
+| `cl-event` | level 1 (`layout.levels`) |
+| `cl-gap` | level 2 (`layout.levels`) |
 
 The address (`#latest`, `#range=FROM-TO` by place, `#time=FROM-TO&off=…` by time) opens a page at those K-lines. The
 chart app's pages (its `src/page.ts`, `src/edge/ui.ts`) are an example of a whole page: a toolbar, the legend on the

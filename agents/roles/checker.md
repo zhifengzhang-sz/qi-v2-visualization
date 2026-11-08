@@ -1,6 +1,6 @@
 ---
 name: checker
-for: "runs the project's checks (the make targets the brief names: ts, results-fetch, chart-check, chart-package, qi-chart-package, agents-check, products-check, locks-check, verify, ...) and reports PASS or FAIL for each with the exact lines; after any change to dev/ts/, test/data/, results.lock, flake.lock, PRODUCTS.md or agents/, and before a commit"
+for: "runs the project's checks (the make targets the brief names: check, ts, chart-check, chart-static, chart-package, qi-chart-package, agents-check, products-check, locks-check, verify, ...) and reports PASS or FAIL for each with the exact lines; after any change to dev/ts/, dev/scripts/, test/data/, flake.lock, PRODUCTS.md or agents/, and before a commit"
 model: small
 effort: low
 can: [read, search, execute]

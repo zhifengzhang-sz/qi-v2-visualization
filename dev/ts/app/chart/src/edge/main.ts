@@ -1,7 +1,7 @@
 /// <reference types="node" />
 // The chart app's command: `main.ts DIR --palette PATH --config PATH [--engine tv,d3fc,tikz] [--bundle PATH] [--lib
 // PATH --tv-engine PATH] [--d3 PATH --fc PATH --d3fc-engine PATH] [--range all|FROM-TO] [--title T] [--level all|0|1…] [--periods
-// NAME=DIR,…] [--marks FILE] [--online N] [--results FILE --scale N | --input FILE --request FILE]` (README.md). --engine, the engines that draw,
+// NAME=DIR,…] [--marks FILE] [--online N] [--input FILE --request FILE [--run FILE]]` (README.md). --engine, the engines that draw,
 // a list, each once, tv and d3fc where none is given; each page carrying its input (describe.ts) and --bundle, the
 // app's script for the browser (src/edge/browser.ts bundled), which makes the engine's description there: tv, the page
 // DIR/chart.html (@qi/chart's engine/tv.ts,
@@ -11,16 +11,16 @@
 // engine's files are needed where it draws, and not read where it does not. --config, the settings (settings.ts,
 // chart.toml): the library's components' styles and parameters and its layout (the digits a price is shown to among
 // them), the averages and MACD, the picture's size and theme; --palette, the palette's names and colours. It makes the
-// run first where it is given one (docs/designs/design-chart-app-2026-10-24.md, Making a run): --results, a set's file,
-// and --scale, its prices' scale: DIR/run.json, the file as it is, and DIR/meta.json, the scale and the set's name, the
-// file's, as the source and the title where none is given; --input, the bars of a chart of bars alone (input.ts), and
-// --request, their scale and source: DIR/in.csv and DIR/meta.json. Neither, DIR is a run made already. Then, on DIR: the
-// run's K-lines, merged bars, 分型, 笔, 线段, 走势 and 中枢 read into the
+// run first where it is given one (docs/designs/design-chart-app-2026-10-24.md, Making a run): --input, the bars
+// (input.ts), and --request, their scale and source: DIR/in.csv and DIR/meta.json; --run, beside them, a run of 缠论's
+// contract over those bars: DIR/run.json, the file as it is. None, DIR is a run made already. Then, on DIR: the run's
+// bars and, where it has them, its merged bars, 分型, 笔, 线段, 走势 and 中枢, read into the
 // components (read.ts) and drawn by each engine asked for; --level, the levels ticked at first; --periods, the same
 // bars' runs at each period, this one among them, each page's 周期 (periods.ts). The add-ons, MA and MACD
 // (indicators.ts), the closes in DIR/history.csv first where the run has one. --marks, a page's marks, a file in the
 // form marks.ts takes, put on the run's K-lines and drawn by every engine; the static picture then of the K-lines the
-// marks are of, where no --range is given. --online, an online page of a run of bars alone: all but its last N
+// marks are of, where no --range is given. --window, a window of a run of bars alone (window.ts). --online, an online
+// page of a run of bars alone: all but its last N
 // K-lines drawn whole, then those N one at a time (src/edge/browser.ts; docs/designs/design-chart-online-2026-11-08.md).
 // A fault stops it, its message on stderr and exit 1.
 
@@ -52,6 +52,7 @@ import {
   type Resolved,
   resolved,
   runOf,
+  type Structure,
   scales,
   settingsSchema,
 } from "../index.ts";
@@ -86,7 +87,7 @@ const say = (line: string): Task<void, FileError> =>
 const usage =
   "usage: main.ts DIR --palette PATH --config PATH [--engine tv,d3fc,tikz] [--bundle PATH] [--lib PATH --tv-engine PATH] " +
   "[--d3 PATH --fc PATH --d3fc-engine PATH] [--range all|FROM-TO] [--title T] [--level all|0|1…] " +
-  "[--periods NAME=DIR,…] [--window FROM:TO|Ny|Nm] [--online N] [--results FILE --scale N | --input FILE --request FILE]";
+  "[--periods NAME=DIR,…] [--window FROM:TO|Ny|Nm] [--online N] [--input FILE --request FILE [--run FILE]]";
 
 // the engines that draw a run, in the order they draw
 const engineNames = ["tv", "d3fc", "tikz"] as const;
@@ -153,12 +154,10 @@ const optionsSchema = z
     level: z.union([z.literal("all"), z.coerce.number().int().nonnegative()]).default("all"),
     // the page's window, FROM:TO or the last N years or months (window.ts); none, the whole run
     window: z.string().min(1).optional(),
-    // a run made first, of the results: a set's file, and its prices' scale, which a run does not hold
-    results: z.string().min(1).optional(),
-    scale: z.coerce.number().pipe(scaleSchema).optional(),
-    // or of bars alone: the bars, their scale and source
+    // a run made first: the bars, their scale and source; and beside them, 缠论's records over those bars
     input: z.string().min(1).optional(),
     request: z.string().min(1).optional(),
+    run: z.string().min(1).optional(),
     // a page's marks, a file in the form marks.ts takes
     marks: z.string().min(1).optional(),
     // an online page (docs/designs/design-chart-online-2026-11-08.md, What changes for the chart app): of a run of bars
@@ -188,16 +187,14 @@ const optionsSchema = z
     message: "--range is the picture's: it needs the engine tikz",
     path: ["range"],
   })
-  .refine(
-    (o) =>
-      (o.results === undefined) === (o.scale === undefined) &&
-      (o.input === undefined) === (o.request === undefined) &&
-      (o.results === undefined || o.input === undefined),
-    {
-      message: "--results and --scale go together, --input and --request go together, one pair or none",
-      path: ["results"],
-    },
-  );
+  .refine((o) => (o.input === undefined) === (o.request === undefined), {
+    message: "--input and --request go together, or neither",
+    path: ["input"],
+  })
+  .refine((o) => o.run === undefined || o.input !== undefined, {
+    message: "--run is beside the bars it is over: it needs --input and --request",
+    path: ["run"],
+  });
 
 // meta.json, written when the run is made: the prices' scale, the source, and the run's title where it has one, so the
 // pages drawn again keep it; request.json the same, without the title
@@ -206,8 +203,8 @@ const metaSchema = z
     scale: scaleSchema,
     source: z.string().min(1),
     title: z.string().min(1).optional(),
-    // a run of bars only: its bars the x-axis, no structure
-    bars: z.literal(true).optional(),
+    // a run with 缠论's records beside its bars, run.json
+    run: z.literal(true).optional(),
   })
   .strict();
 
@@ -232,10 +229,9 @@ const args = (argv: readonly string[]) =>
           window: { type: "string" },
           periods: { type: "string" },
           range: { type: "string" },
-          results: { type: "string" },
-          scale: { type: "string" },
           input: { type: "string" },
           request: { type: "string" },
+          run: { type: "string" },
           marks: { type: "string" },
           online: { type: "string" },
         },
@@ -436,42 +432,18 @@ const d3fc = (
 const folder = (dir: string): Task<string | undefined, FileError> =>
   task.tryPromise(io("cannot make", dir))(() => mkdir(dir, { recursive: true }));
 
-// a run of the results made: the set's file as it is, and meta.json, the set's name its source and its title where
-// none is given; the text read first, so a file given at DIR/run.json is written back as it was
-const ofResults = (
-  dir: string,
-  file: string,
-  scale: number,
-  title: string | undefined,
-): Task<void, FileError> => {
-  const set = basename(file, ".json");
-  return pipe(
-    read(file),
-    task.flatMap((text) =>
-      pipe(
-        folder(dir),
-        task.flatMap(() =>
-          task.all([
-            write(join(dir, "run.json"), text),
-            write(join(dir, "meta.json"), `${JSON.stringify({ scale, source: set, title: title ?? set })}\n`),
-          ]),
-        ),
-      ),
-    ),
-    task.map(() => undefined),
-  );
-};
-
-// a run of bars alone made: in.csv and meta.json
+// a run made: in.csv and meta.json, and run.json beside them where a run is given, the file as it is; the texts read
+// first, so a file given at DIR/run.json is written back as it was
 const ofBars = (
   dir: string,
   input: string,
   request: string,
+  run: string | undefined,
   title: string | undefined,
 ): Task<void, FileError | DataError> =>
   pipe(
-    task.all([read(input), read(request)]),
-    task.flatMap(([text = "", requestText = ""]) =>
+    task.all([read(input), read(request), run === undefined ? task.of("") : read(run)]),
+    task.flatMap(([text = "", requestText = "", runText = ""]) =>
       pipe(
         json(request)(requestText),
         task.flatMap((m) =>
@@ -483,7 +455,7 @@ const ofBars = (
                 pipe(
                   parse(meta.scale)(text),
                   result.mapError((e) => dataError(`${input}: ${e.message}`)),
-                  result.map((bars) => ({ meta, bars })),
+                  result.map((bars) => ({ meta, bars, runText })),
                 ),
               ),
             ),
@@ -491,15 +463,20 @@ const ofBars = (
         ),
       ),
     ),
-    task.flatMap(({ meta, bars }) =>
+    task.flatMap(({ meta, bars, runText }) =>
       pipe(
         folder(dir),
         task.flatMap(() =>
           task.all([
             write(join(dir, "in.csv"), barsFile(bars)),
+            ...(run === undefined ? [] : [write(join(dir, "run.json"), runText)]),
             write(
               join(dir, "meta.json"),
-              `${JSON.stringify({ ...meta, ...(title === undefined ? {} : { title }), bars: true })}\n`,
+              `${JSON.stringify({
+                ...meta,
+                ...(title === undefined ? {} : { title }),
+                ...(run === undefined ? {} : { run: true }),
+              })}\n`,
             ),
           ]),
         ),
@@ -511,17 +488,14 @@ const ofBars = (
 // the run made, where one is given (optionsSchema); nothing where none is (DIR is a run already made)
 const made = (o: {
   readonly dir: string;
-  readonly results?: string | undefined;
-  readonly scale?: number | undefined;
   readonly input?: string | undefined;
   readonly request?: string | undefined;
+  readonly run?: string | undefined;
   readonly title?: string | undefined;
 }): Task<void, FileError | DataError> =>
-  o.results !== undefined && o.scale !== undefined
-    ? ofResults(o.dir, o.results, o.scale, o.title)
-    : o.input !== undefined && o.request !== undefined
-      ? ofBars(o.dir, o.input, o.request, o.title)
-      : task.of(undefined);
+  o.input !== undefined && o.request !== undefined
+    ? ofBars(o.dir, o.input, o.request, o.run, o.title)
+    : task.of(undefined);
 
 // the settings and the palette, read and checked before a run is made, so a fault in them costs no run: every colour
 // the settings name a name of the palette, or that part would not show
@@ -628,132 +602,123 @@ const main = pipe(
           ),
         ),
       ),
-      // a run of bars only: its bars (in.csv); a run of the results: the set's file (run.json)
+      // a run's bars (in.csv), and 缠论's records over them (run.json) where it has them
       task.flatMap((meta) =>
         pipe(
           task.all([
-            read(join(o.dir, meta.bars === true ? "in.csv" : "run.json")),
+            read(join(o.dir, "in.csv")),
+            meta.run === true ? read(join(o.dir, "run.json")) : task.of(""),
             optional(join(o.dir, "history.csv")),
           ]),
-          task.map(([text = "", hist = ""]) => ({ meta, text, hist })),
+          task.map(([text = "", runText = "", hist = ""]) => ({ meta, text, runText, hist })),
         ),
       ),
-      task.flatMap(({ meta, text, hist }) =>
+      task.flatMap(({ meta: m, text, runText, hist }) =>
         pipe(
-          task.of(meta),
-          task.flatMap((m) =>
+          task.fromResult(
             pipe(
-              task.of(o.pal),
-              task.flatMap((pal) =>
-                task.fromResult(
-                  pipe(
-                    m.bars === true ? barsOf(text) : runOf(join(o.dir, "run.json"))(text),
-                    // the page's input: the components as read, the closes before the run's first K-line (the
-                    // add-ons start from them where it has them), the settings, every value
-                    // the page's window, where one is asked: the structure is the whole series' (window.ts)
-                    result.flatMap((whole) =>
-                      pipe(
-                        history(hist),
-                        result.mapError((e) => dataError(e.message)),
-                        result.flatMap((h) =>
-                          o.window === undefined
-                            ? result.success({ structure: whole, history: h })
-                            : pipe(
-                                windowOf(o.window),
-                                result.flatMap((w) =>
-                                  span(
-                                    whole.xs.map((k) => k.date),
-                                    w,
-                                  ),
-                                ),
-                                result.map(([a, b]) => windowed(a, b)(whole, h)),
-                                result.mapError((e) => dataError(e.message)),
+              barsOf(text),
+              result.flatMap((bars) =>
+                m.run === true
+                  ? result.map((run: Structure["run"]): Structure => ({ xs: bars.xs, run }))(
+                      runOf(join(o.dir, "run.json"))(runText),
+                    )
+                  : result.success(bars),
+              ),
+              result.mapError((e) => dataError(e.message)),
+              // the closes before the run's first K-line (the add-ons start from them where it has them); the page's
+              // window, where one is asked, of a run of bars alone (window.ts)
+              result.flatMap((whole) =>
+                pipe(
+                  history(hist),
+                  result.mapError((e) => dataError(e.message)),
+                  result.flatMap((h) =>
+                    o.window === undefined
+                      ? result.success({ structure: whole, history: h })
+                      : m.run === true
+                        ? result.failure(
+                            dataError(
+                              `--window ${o.window}: a window is of a run of bars alone; a run's merged bars are numbered by their place`,
+                            ),
+                          )
+                        : pipe(
+                            windowOf(o.window),
+                            result.flatMap((w) =>
+                              span(
+                                whole.xs.map((k) => k.date),
+                                w,
                               ),
-                        ),
-                      ),
-                    ),
-                    result.flatMap(({ structure: v, history: before }) =>
-                      pipe(
-                        result.success(before),
-                        result.map(
-                          (before): PageInput => ({
-                            title: o.title ?? m.title ?? basename(o.dir),
-                            scale: m.scale,
-                            level: o.level,
-                            settings: everyValue(o.settings),
-                            history: before,
-                            xAxis: v.xs,
-                            merged: v.ms,
-                            fractals: v.fs,
-                            strokes: v.bs,
-                            duan: v.ds,
-                            zoushi: v.zs,
-                            zhongshu: v.zh,
-                            ...(o.online === undefined ? {} : { online: o.online }),
-                          }),
-                        ),
-                        // an online page: of a run of bars alone, with K-lines before the N that come one at a time
-                        result.flatMap((input: PageInput) =>
-                          input.online === undefined || (m.bars === true && input.online < input.xAxis.length)
-                            ? result.success(input)
-                            : result.failure(
-                                dataError(
-                                  `--online ${input.online}: an online page is of a run of bars alone, N fewer than its ${input.xAxis.length} K-lines`,
-                                ),
-                              ),
-                        ),
-                        result.map((input) => ({ ...v, input })),
-                      ),
-                    ),
-                    // the components from it, as the page's script makes them
-                    result.flatMap(({ xs, ms, fs, bs, ds, input }) =>
-                      pipe(
-                        // an online page's, of its history (describe.ts)
-                        components(historyOf(input)),
-                        result.mapError((e) => dataError(`the settings: ${e.message}`)),
-                        result.map((c) => ({
-                          input,
-                          components: c,
-                          pal,
-                          picture: o.settings.picture,
-                          source:
-                            m.bars === true
-                              ? m.source
-                              : `${m.source}; the structure from the published results`,
-                          xs,
-                          ms,
-                          fs,
-                          bs,
-                          ds,
-                        })),
-                      ),
-                    ),
+                            ),
+                            result.map(([a, b]) => windowed(a, b)(whole.xs, h)),
+                            result.map((v) => ({ structure: { ...whole, xs: v.xs }, history: v.history })),
+                            result.mapError((e) => dataError(e.message)),
+                          ),
                   ),
+                ),
+              ),
+              // the page's input: the components as read, the closes before them, the settings, every value
+              result.map(
+                ({ structure: v, history: before }): PageInput => ({
+                  title: o.title ?? m.title ?? basename(o.dir),
+                  scale: m.scale,
+                  level: o.level,
+                  settings: everyValue(o.settings),
+                  history: before,
+                  xAxis: v.xs,
+                  run: v.run,
+                  ...(o.online === undefined ? {} : { online: o.online }),
+                }),
+              ),
+              // an online page: of a run of bars alone, with K-lines before the N that come one at a time
+              result.flatMap((input: PageInput) =>
+                input.online === undefined || (m.run !== true && input.online < input.xAxis.length)
+                  ? result.success(input)
+                  : result.failure(
+                      dataError(
+                        `--online ${input.online}: an online page is of a run of bars alone, N fewer than its ${input.xAxis.length} K-lines`,
+                      ),
+                    ),
+              ),
+              // the components from it, as the page's script makes them: an online page's, of its history (describe.ts)
+              result.flatMap((input) =>
+                pipe(
+                  components(historyOf(input)),
+                  result.mapError((e) => dataError(`the settings: ${e.message}`)),
+                  result.map((c) => ({
+                    input,
+                    components: c,
+                    pal: o.pal,
+                    picture: o.settings.picture,
+                    source: m.run === true ? `${m.source}; 缠论's records beside them, run.json` : m.source,
+                  })),
                 ),
               ),
             ),
           ),
           task.flatMap((r) =>
             pipe(
-              marked(o.marks, r.xs, r.input.scale, r.pal),
-              task.map((m) => ({ ...r, ...m })),
+              marked(o.marks, r.input.xAxis, r.input.scale, r.pal),
+              task.map((mk) => ({ ...r, ...mk })),
             ),
           ),
-          task.flatMap((r) =>
-            pipe(
+          task.flatMap((r) => {
+            const run = r.input.run;
+            const count = (part: readonly (readonly unknown[])[]): number =>
+              part.reduce((n, l) => n + l.length, 0);
+            return pipe(
               say(
-                `chart: ${o.dir}: ${r.xs.length} K-lines, ${r.ms.length} merged bars ` +
-                  `(${r.ms.filter((x) => x.endDate > x.startDate).length} of two K-lines or more), ` +
-                  `${r.ms.filter((x) => x.confirmEndDate === undefined).length} not yet confirmed; ${r.fs.length} 分型 ` +
-                  `(${r.fs.filter((x) => x.ding).length} tops, ${r.fs.filter((x) => x.turningpoint).length} 拐点); ${r.bs.length} 笔, ${r.ds.length} 线段; ` +
-                  `${r.components.zoushi.length} 走势, ${r.components.zhongshu.length} 中枢; ` +
+                `chart: ${o.dir}: ${r.input.xAxis.length} K-lines, ${run.merged.length} merged bars ` +
+                  `(${run.merged.filter((x) => x.end > x.start).length} of two K-lines or more), ` +
+                  `${run.merged.filter((x) => x.confirmEnd === undefined).length} not yet confirmed; ` +
+                  `${run.fractals.length} 分型; ${run.strokes.length} 笔, ${count(run.segments)} 线段, ` +
+                  `${count(run.moves)} 走势, ${count(run.consolidations)} 中枢; ` +
                   `add-ons: ${r.components.addons.map((a) => a.name).join(", ")}`,
               ),
               task.flatMap(() => tv(o, r)),
               task.flatMap(() => d3fc(o, r)),
               task.flatMap(() => picture(o, r)),
-            ),
-          ),
+            );
+          }),
         ),
       ),
     ),

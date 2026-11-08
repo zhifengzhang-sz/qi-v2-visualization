@@ -1,11 +1,11 @@
 // The adapter from a run to the components of @qi/chart (docs/designs/design-chart-app-2026-10-24.md, Reading it into
-// the contracts): a set of the published results, by the contract's own decodeRun, every rule of its records and of the
-// run with it, a fault of the file by its name; its records as they are, the dates already positions and each
-// configuration after 包含 already on its merged bars. A run of bars only (in.csv) has its bars as the x-axis and no
-// structure. The times of the bars, the marks and the windows are read here too.
+// the contracts): a run's bars (in.csv) are the x-axis; beside them, where the run has one, 缠论's records over them
+// (run.json), a run of the contract chanlun decoded by its own decodeRun, every rule of its records and of the run
+// with it, a fault of the file by its name, its records as they are, its positions the places of the bars. A run of
+// bars alone has a run of no record. The times of the bars, the marks and the windows are read here too.
 
 import { type Json, pipe, type QiError, type Result, result } from "@qi/base";
-import { type Centre, decodeRun, type Fractal, klineSchema, type MergedBar, type Stroke } from "@qi/chanlun";
+import { decodeRun, type Run } from "@qi/chanlun";
 import type { XAxis } from "@qi/chart";
 import { decode } from "@qi/core";
 import { z } from "zod";
@@ -38,9 +38,9 @@ export const runBarSchema = z
     (b) => b.low <= Math.min(b.open, b.close) && Math.max(b.open, b.close) <= b.high,
     "a bar's open and close within its low and high",
   );
-// a run's K-lines as read: 缠论's (a set of the results) or the run's bars, in time order
+// a run's bars as read, in time order
 export const axisSchema = z
-  .array(z.union([klineSchema, runBarSchema]))
+  .array(runBarSchema)
   .min(1)
   .readonly()
   .refine(
@@ -48,15 +48,17 @@ export const axisSchema = z
     "the K-lines strictly in time",
   );
 
-// a run's structure, as read
-export type Structure = {
-  readonly xs: XAxis;
-  readonly ms: readonly MergedBar[];
-  readonly fs: readonly Fractal[];
-  readonly bs: readonly Stroke[];
-  readonly ds: readonly Stroke[];
-  readonly zs: readonly Stroke[];
-  readonly zh: readonly Centre[];
+// a run as read: its bars, and 缠论's records over them
+export type Structure = { readonly xs: XAxis; readonly run: Run };
+
+// the run of no record, a chart of bars alone's
+export const noRun: Run = {
+  merged: [],
+  fractals: [],
+  strokes: [],
+  segments: [],
+  moves: [],
+  consolidations: [],
 };
 
 // A file's rows by its header's names; its fields hold no comma (the bars' CSV, history.csv).
@@ -176,28 +178,17 @@ export const barsAxis = (text: string): Result<XAxis, ReadError> =>
       ),
   );
 
-// in.csv of a run of bars only as its structure: its bars the x-axis, nothing of 缠论
+// in.csv of a run of bars alone as its structure: its bars the x-axis, a run of no record
 export const barsOf = (text: string): Result<Structure, ReadError> =>
   pipe(
     barsAxis(text),
-    result.map((xs) => ({ xs, ms: [], fs: [], bs: [], ds: [], zs: [], zh: [] })),
+    result.map((xs) => ({ xs, run: noRun })),
   );
 
-// A run's file as its structure, by the contract's own decodeRun: 线段 its segments, 走势 and 中枢 each level's after the
-// one before, each record keeping its level.
+// 缠论's records over a run's bars (run.json), by the contract's own decodeRun, as they are
 export const runOf =
   (file: string) =>
-  (text: string): Result<Structure, ReadError> => {
+  (text: string): Result<Run, ReadError> => {
     const got = decodeRun(text);
-    return got.ok
-      ? result.success({
-          xs: got.run.klines,
-          ms: got.run.merged,
-          fs: got.run.fractals,
-          bs: got.run.strokes,
-          ds: got.run.segments,
-          zs: got.run.trends.flat(),
-          zh: got.run.centres.flat(),
-        })
-      : result.failure(fault(`${file}: ${got.error}`, { file }));
+    return got.ok ? result.success(got.run) : result.failure(fault(`${file}: ${got.error}`, { file }));
   };

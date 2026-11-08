@@ -2,19 +2,20 @@
 # `make install` and the targets of the Makefile. Everything from outside is an input pinned by flake.lock, each a
 # public repository read over HTTPS with no login: qi-v2's one nixpkgs, its pure shell and its TeX preset (the static
 # picture); the kit, which writes the agents' files from agents/; 缠论's contract and the market data contract
-# (qi-v2-contracts); @qi/base and @qi/core (qi-v2-ts). The results are no input: the published image, public, by the
-# digest results.lock names, taken by make results-fetch.
+# (qi-v2-contracts), with their vectors; @qi/base and @qi/core (qi-v2-ts).
 {
-  description = "qi-v2-visualization: @qi/chart, the 缠论 drawing library, and the chart app; version 2, online, made here";
+  description = "qi-v2-visualization: @qi/chart, the 缠论 drawing library, and the chart app; version 3, on the contracts chanlun 3.1.0 and market 1.1.0";
 
   inputs.qi-v2.url = "github:zhifengzhang-sz/qi-v2-nix?dir=qi-v2";
   inputs.nixpkgs.follows = "qi-v2/nixpkgs";
   inputs.kit.url = "github:zhifengzhang-sz/qi-v2-nix?dir=kit";
   inputs.kit.inputs.qi-v2.follows = "qi-v2";
   # 缠论's contract (qi-v2-contracts, chanlun/README.md): its TypeScript form, @qi/chanlun, linked at
-  # dev/ts/node_modules/@qi/chanlun (make chanlun-link) and copied into the packages qi-chart and chart
-  inputs.contracts.url = "github:zhifengzhang-sz/qi-v2-contracts?ref=chanlun-1.1.0";
+  # dev/ts/node_modules/@qi/chanlun (make chanlun-link) and copied into the packages qi-chart and chart; its vectors
+  # the structure's tests and checks (docs/designs/design-chart-chanlun-3-2026-11-09.md, How the release is checked)
+  inputs.contracts.url = "github:zhifengzhang-sz/qi-v2-contracts?ref=chanlun-3.1.0";
   inputs.contracts.inputs.qi-v2.follows = "qi-v2";
+  inputs.contracts.inputs.kit.follows = "kit";
   # the market data contract (qi-v2-contracts, market/README.md): its TypeScript form, @qi/market, the K-lines the
   # library takes (docs/designs/design-chart-online-2026-11-08.md), linked at dev/ts/node_modules/@qi/market (make
   # market-link) and copied into the packages qi-chart and chart
@@ -42,7 +43,7 @@
             # the TeX of the static picture (the tikz engine's chart.tex, by XeLaTeX with xeCJK)
             uses = [ (qi-v2.lib.tex pkgs) ];
             packages = with pkgs; [
-              gnumake git gh curl openssh crane python3
+              gnumake git gh curl openssh python3
               # the TypeScript of dev/ts/ (dev/ts/STYLE.md): Bun runs it, Biome lints and formats it; its packages
               # (Zod, vitest, fast-check, TypeScript) are pinned by dev/ts/bun.lock; vitest's runtime is Node
               bun biome nodejs_24
@@ -56,6 +57,10 @@
             env = {
               VISUALIZATION_SHELL = "1";
               CHANLUN_TS = "${contracts.packages.${pkgs.stdenv.hostPlatform.system}.chanlun-ts}";
+              # the contracts' vectors, at the inputs' tags: 缠论's (a run, the bars it is over made by bars.ts) and
+              # the market data's (an ongoing K-line), for the library's tests and make vectors
+              CHANLUN_VECTORS = "${contracts}/chanlun/vectors";
+              MARKET_VECTORS = "${market}/market/vectors";
             };
             closing = ''echo "visualization: make help lists the targets; docs/opening.md says where the work stands"'';
           };
@@ -110,13 +115,14 @@
           lightweight-charts = lwc;
           d3fc = d3fc;
           # @qi/chart, the 缠论 drawing library (dev/ts/lib/chart/README.md, how to take and use it, shipped as its
-          # README.md), as source for a taker's Bun or TypeScript: a node_modules of @qi/chart, with its engines' browser
-          # scripts built from their TypeScript, and of what it takes, @qi/chanlun (缠论's contract, the input contracts'),
+          # README.md, with the repository's LICENSE), as source for a taker's Bun or TypeScript: a node_modules of
+          # @qi/chart, with its engines' browser scripts built from their TypeScript, and of what it takes, @qi/chanlun
+          # (缠论's contract, the input contracts', alone of its package: its @qi/market and zod are the ones below),
           # @qi/market (the market data contract, the input market's),
           # @qi/base and @qi/core (qi-v2-ts's, the input qi-v2-ts's), @qi/indicator (this project's), zod (npm's,
           # pinned by hash), and smol-toml and Node's type definitions, which @qi/core takes (qi-v2-ts's, beside it in
           # its package); no tests. make qi-chart-package takes it as a taker does.
-          qi-chart = pkgs.runCommand "qi-chart-2.0.1" { nativeBuildInputs = [ pkgs.bun ]; } ''
+          qi-chart = pkgs.runCommand "qi-chart-3.0.0" { nativeBuildInputs = [ pkgs.bun ]; } ''
             export HOME=$TMPDIR
             m=$out/node_modules
             mkdir -p $m/@qi/indicator $m/@qi/chanlun $m/@qi/market $m/@qi/chart $m/zod $m/@types
@@ -137,11 +143,12 @@
             cp ${./dev/ts/lib/chart/package.json} $m/@qi/chart/package.json
             tar -xzf ${zod} -C $m/zod --strip-components=1
             cp ${./dev/ts/lib/chart/README.md} $out/README.md
+            cp ${./LICENSE} $out/LICENSE
           '';
           # Charts: the chart app (dev/ts/app/chart, its README shipped in share/doc/chart) bundled by Bun into one
           # script, its npm packages pinned by hash (no network); Lightweight Charts, D3 and d3fc, both engines'
-          # scripts and the palette given to it by the wrapper. It reads no lock: a taker gives it a set's file and
-          # scale. make chart-package runs it.
+          # scripts and the palette given to it by the wrapper. A taker gives it the bars, their request and, beside
+          # them, a run of 缠论's contract. make chart-package runs it.
           chart = pkgs.stdenv.mkDerivation {
             pname = "chart";
             version = "1.8.0";
@@ -193,7 +200,7 @@
           };
         });
       apps = forAll (pkgs: {
-        # the chart app (dev/ts/app/chart/README.md): nix run <visualization>#chart -- DIR --results FILE --scale N …
+        # the chart app (dev/ts/app/chart/README.md): nix run <visualization>#chart -- DIR --input FILE --request FILE [--run FILE] …
         chart = { type = "app"; program = "${self.packages.${pkgs.stdenv.hostPlatform.system}.chart}/bin/chart"; };
       });
     };

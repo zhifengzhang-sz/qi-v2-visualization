@@ -6,7 +6,7 @@
 // (tvChart, d3fcChart), so the browser draws what the command would.
 
 import { type QiError, type Result, result } from "@qi/base";
-import { centreSchema, fractalSchema, mergedBarSchema, strokeSchema } from "@qi/chanlun";
+import { runSchema } from "@qi/chanlun";
 import type { Components, KLines, XAxis } from "@qi/chart";
 import type { KLine, OngoingKLine } from "@qi/market";
 import { z } from "zod";
@@ -24,12 +24,8 @@ export const pageInputSchema = z
     // the closes before the run's first K-line, at the scale (history.csv; none where the run has none)
     history: z.array(z.number().int()).readonly(),
     xAxis: axisSchema,
-    merged: z.array(mergedBarSchema).readonly(),
-    fractals: z.array(fractalSchema).readonly(),
-    strokes: z.array(strokeSchema).readonly(),
-    duan: z.array(strokeSchema).readonly(),
-    zoushi: z.array(strokeSchema).readonly(),
-    zhongshu: z.array(centreSchema).readonly(),
+    // 缠论's records over the bars, a run of the contract (read.ts); a run of no record for bars alone
+    run: runSchema,
     // an online page (docs/designs/design-chart-online-2026-11-08.md, What changes for the chart app): all but the last
     // N K-lines drawn whole, then those N one at a time (src/edge/browser.ts)
     online: z.number().int().positive().optional(),
@@ -62,22 +58,20 @@ const decimal = (n: number, scale: number): number => {
   return Number(`${n < 0 ? "-" : ""}${whole}${fraction === "" ? "" : `.${fraction}`}`);
 };
 
-// The K-lines as the library takes them, each a contract's (docs/designs/design-chart-online-2026-11-08.md, What
-// changes for the chart app): 缠论's as they are; a run's bars as market's K-lines, each an index from 0, its date in
+// The K-lines as the library takes them, market's (docs/designs/design-chart-online-2026-11-08.md, What changes for
+// the chart app): a run's bars, each an index from 0 (its place, as a run's positions name it), its date in
 // milliseconds, its prices as decimals at the scale, its volume as the run keeps it, so the library makes the same bars
 // of them.
 export const klinesOf = (xs: XAxis, scale: number): KLines =>
-  xs.every((k) => "rno" in k)
-    ? xs.flatMap((k) => ("rno" in k ? [k] : []))
-    : xs.map((k, index) => ({
-        index,
-        date: k.date * 1000,
-        open: decimal(k.open, scale),
-        high: decimal(k.high, scale),
-        low: decimal(k.low, scale),
-        close: decimal(k.close, scale),
-        volume: k.volume,
-      }));
+  xs.map((k, index) => ({
+    index,
+    date: k.date * 1000,
+    open: decimal(k.open, scale),
+    high: decimal(k.high, scale),
+    low: decimal(k.low, scale),
+    close: decimal(k.close, scale),
+    volume: k.volume,
+  }));
 
 // The chart's components from a page's input: the settings over their defaults, the add-ons by them.
 export const components = (i: PageInput): Result<Components, SettingsError> =>
@@ -87,12 +81,7 @@ export const components = (i: PageInput): Result<Components, SettingsError> =>
       scale: i.scale,
       options: r.chart,
       xAxis: klinesOf(i.xAxis, i.scale),
-      merged: i.merged,
-      fractals: i.fractals,
-      strokes: i.strokes,
-      duan: i.duan,
-      zoushi: i.zoushi,
-      zhongshu: i.zhongshu,
+      run: i.run,
       addons: indicators(r)(i.scale, i.history),
     }),
   )(resolved(i.settings));
@@ -125,4 +114,4 @@ const comingOf = (k: KLine): readonly Coming[] => {
 export const comingFor = (i: PageInput): readonly Coming[] =>
   klinesOf(i.xAxis, i.scale)
     .slice(i.xAxis.length - (i.online ?? 0))
-    .flatMap((k) => ("index" in k ? comingOf(k) : []));
+    .flatMap(comingOf);

@@ -3,30 +3,24 @@
 // one; the prices right of the graph, the dates under it; round ticks; the caller's marks.
 
 import { result } from "@qi/base";
-import { type KLine, klinesSchema } from "@qi/chanlun";
 import { decode } from "@qi/core";
+import type { KLine } from "@qi/market";
 import { describe, expect, it } from "vitest";
 import { type AddOn, addOn, type MarkLayer, tikzChart } from "../src/index.ts";
 import { markLayerSchema } from "../src/marking.ts";
 import { cut, ticks } from "../src/tikz.ts";
+import { decimal, run } from "./records.ts";
 
 // ten daily K-lines from 2007-05-21, rising by 1.00 a day, at a scale of 100
-const xs: readonly KLine[] = result.getOrElse((): readonly KLine[] => [])(
-  decode(klinesSchema)(
-    Array.from({ length: 10 }, (_, i) => ({
-      rno: i,
-      date: 1179705600 + 86400 * i,
-      up: true,
-      open: 1000 + 100 * i,
-      high: 1050 + 100 * i,
-      low: 990 + 100 * i,
-      close: 1040 + 100 * i,
-      volume: 10,
-      confirmRno: 0,
-      stored: 1,
-    })),
-  ),
-);
+const xs: readonly KLine[] = Array.from({ length: 10 }, (_, i) => ({
+  index: i,
+  date: (1179705600 + 86400 * i) * 1000,
+  open: decimal(1000 + 100 * i, 100),
+  high: decimal(1050 + 100 * i, 100),
+  low: decimal(990 + 100 * i, 100),
+  close: decimal(1040 + 100 * i, 100),
+  volume: 10,
+}));
 
 const sub: AddOn = addOn({
   key: "s",
@@ -59,12 +53,7 @@ const picture = (
         title: "SH000001_1D",
         scale: 100,
         xAxis: xs,
-        merged: [],
-        fractals: [],
-        strokes: [],
-        duan: [],
-        zoushi: [],
-        zhongshu: [],
+        run: run(),
         addons,
       },
       {
@@ -190,12 +179,7 @@ describe("the TikZ engine", () => {
         title: "t",
         scale: 100,
         xAxis: xs,
-        merged: [],
-        fractals: [],
-        strokes: [],
-        duan: [],
-        zoushi: [],
-        zhongshu: [],
+        run: run(),
         addons: [],
       },
       { from: 0, to: 9, width: 10, height: 6, palette: {}, theme: "light" },
@@ -211,12 +195,7 @@ describe("the TikZ engine", () => {
       scale: 100,
       options: { layout: { digits: -1 } },
       xAxis: xs,
-      merged: [],
-      fractals: [],
-      strokes: [],
-      duan: [],
-      zoushi: [],
-      zhongshu: [],
+      run: run(),
       addons: [],
     };
     const o = { from: 0, to: 9, width: 10, height: 6, palette: {}, theme: "light" as const };

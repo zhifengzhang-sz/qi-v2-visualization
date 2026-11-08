@@ -5,12 +5,11 @@
 // the series with its band, opacity and legend, the margins beside.
 
 import { result } from "@qi/base";
-import { type KLine, klinesSchema } from "@qi/chanlun";
-import { decode } from "@qi/core";
 import { describe, expect, it } from "vitest";
 import { type Chart, type D3fc, d3fcChart, type Engine, type Layers, tvChart } from "../src/index.ts";
-import { volumeDefaults } from "../src/schemas.ts";
+import { type Bar, volumeDefaults } from "../src/schemas.ts";
 import { volume } from "../src/volume.ts";
+import { klines, run } from "./records.ts";
 
 const words: Engine<string> = {
   candle: (at) => `candle ${at}`,
@@ -24,39 +23,27 @@ const words: Engine<string> = {
   profile: (from, to) => `profile ${from}-${to}`,
 };
 
-// three K-lines a minute apart: up, down, flat (closing at its open), with volumes 5, 7, 0
-const xs: readonly KLine[] = result.getOrElse((): readonly KLine[] => [])(
-  decode(klinesSchema)(
-    [
-      [10, 20, 5],
-      [20, 10, 7],
-      [15, 15, 0],
-    ].map(([open = 0, close = 0, volume = 0], i) => ({
-      rno: i,
-      date: 60 * (i + 1),
-      up: true,
-      open,
-      high: Math.max(open, close),
-      low: Math.min(open, close),
-      close,
-      volume,
-      confirmRno: 0,
-      confirmDate: i,
-      stored: 1,
-    })),
-  ),
-);
+// three K-lines a minute apart: up, down, flat (closing at its open), with volumes 5, 7, 0; as bars inside, and as
+// market's K-lines at the scale 10
+const rows = [
+  [10, 20, 5],
+  [20, 10, 7],
+  [15, 15, 0],
+].map(([open = 0, close = 0, volume = 0]) => ({
+  open,
+  high: Math.max(open, close),
+  low: Math.min(open, close),
+  close,
+  volume,
+}));
+const xs: readonly Bar[] = rows.map((r, i) => ({ date: 60 * (i + 1), ...r }));
+const ks = klines(rows, 10);
 
 const components = {
   title: "t",
   scale: 10,
-  xAxis: xs,
-  merged: [],
-  fractals: [],
-  strokes: [],
-  duan: [],
-  zoushi: [],
-  zhongshu: [],
+  xAxis: ks,
+  run: run(),
   addons: [],
 };
 

@@ -1,7 +1,7 @@
 # the TypeScript's packages and what the targets write (the charts, the engines' scripts, the reports)
 node_modules/
 .reports/
-# what the targets take and keep: the results (make results-fetch)
+# a local cache no target writes now (an earlier version's fetched results): never committed
 /.cache/
 # what LaTeX writes while it builds the static picture
 *.aux

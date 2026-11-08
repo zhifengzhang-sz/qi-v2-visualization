@@ -1,13 +1,10 @@
 // The K-lines' drawing (kline.ts) through an engine of text: a candle at each K-line, its prices over the chart's
 // scale, red when it closes at or above its open, green below.
 
-import { result } from "@qi/base";
-import { type KLine, klinesSchema } from "@qi/chanlun";
-import { decode } from "@qi/core";
 import { describe, expect, it } from "vitest";
 import type { Engine } from "../src/index.ts";
 import { kline } from "../src/kline.ts";
-import { klineDefaults } from "../src/schemas.ts";
+import { type Bar, klineDefaults } from "../src/schemas.ts";
 
 const words: Engine<string> = {
   candle: (at, open, high, low, close, colours) =>
@@ -19,27 +16,18 @@ const words: Engine<string> = {
   profile: (from, to) => `profile ${from}-${to}`,
 };
 
-// two K-lines a minute apart: one up (10 to 20), one down (20 to 15)
-const xs: readonly KLine[] = result.getOrElse((): readonly KLine[] => [])(
-  decode(klinesSchema)(
-    [
-      [10, 20],
-      [20, 15],
-    ].map(([open = 0, close = 0], i) => ({
-      rno: i,
-      date: 60 * (i + 1),
-      up: true,
-      open,
-      high: Math.max(open, close),
-      low: Math.min(open, close),
-      close,
-      volume: 0,
-      confirmRno: 0,
-      confirmDate: i,
-      stored: 1,
-    })),
-  ),
-);
+// two K-lines a minute apart, as bars inside: one up (10 to 20), one down (20 to 15)
+const xs: readonly Bar[] = [
+  [10, 20],
+  [20, 15],
+].map(([open = 0, close = 0], i) => ({
+  date: 60 * (i + 1),
+  open,
+  high: Math.max(open, close),
+  low: Math.min(open, close),
+  close,
+  volume: 0,
+}));
 
 describe("the K-lines' drawing", () => {
   it("draws a candle at each K-line, its prices over the scale, red up, green down", () => {

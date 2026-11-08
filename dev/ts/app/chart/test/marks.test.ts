@@ -2,28 +2,19 @@
 // time, its price at the file's scale; a point's text below it where it is its K-line's low; a time no K-line's a fault.
 
 import { result } from "@qi/base";
-import { type Marks, type XAxis, xAxisSchema } from "@qi/chart";
-import { decode } from "@qi/core";
+import type { Marks, XAxis } from "@qi/chart";
 import { describe, expect, it } from "vitest";
 import { marksOf, picture } from "../src/index.ts";
 
 // three minutes from 2007-05-23 09:31 (read as UTC, as a run's), at a scale of 100
-const xs: XAxis = result.getOrElse((): XAxis => [])(
-  decode(xAxisSchema)(
-    [0, 1, 2].map((i) => ({
-      rno: i,
-      date: 1179912660 + 60 * i,
-      up: true,
-      open: 410000 + 100 * i,
-      high: 410050 + 100 * i,
-      low: 409990 + 100 * i,
-      close: 410040 + 100 * i,
-      volume: 10,
-      confirmRno: 0,
-      stored: 1,
-    })),
-  ),
-);
+const xs: XAxis = [0, 1, 2].map((i) => ({
+  date: 1179912660 + 60 * i,
+  open: 410000 + 100 * i,
+  high: 410050 + 100 * i,
+  low: 409990 + 100 * i,
+  close: 410040 + 100 * i,
+  volume: 10,
+}));
 
 const lean = {
   picture: "minutes",

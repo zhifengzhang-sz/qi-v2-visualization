@@ -2,15 +2,16 @@
 // component has two callbacks: `derive` picks its data from the components, `draw` turns that data into an engine's
 // primitives. They are called here.
 //
-// What it draws, as the page shows it:
+// What it draws, as the page shows it (docs/designs/design-chart-chanlun-3-2026-11-09.md, The levels):
 // - outside any level: K线 and 成交量 (from the K-lines), then the caller's add-ons (addon.ts), each on the main graph
 //   or in its own subgraph (panes 1, 2, … in order);
-// - level 0: 包含 and 分型 (fine: shown only while few K-lines are in view; 分型 off at first), 笔, 线段 and 中枢,
-//   each only where it has data (a run of bars only has no level);
-// - each level L above: its 线段 (the 走势 of level L − 1) and its 中枢, where it has them;
-// - 成交量分布: a choice of layers, none at first (derived from the K-lines and the 缠论 data, distribution.ts).
-// Every configuration is put on its K-lines by the one map (locate.ts). All levels are on at first, or only one.
-// Every style, parameter and the layout come from the caller's options over the defaults (schemas.ts).
+// - level 0: 包含 and 分型 (fine: shown only while few K-lines are in view; 分型 off at first) and 笔, each only where
+//   the run has them;
+// - each level L, 0 among them: its 线段, its 走势 and its 中枢, the run's records of level L, where it has them (a chart
+//   of bars alone has no level);
+// - 成交量分布: a choice of layers, none at first (derived from the K-lines and the run, distribution.ts).
+// Every record is put on its K-lines by the one map (locate.ts). All levels are on at first, or only one. Every style,
+// parameter and the layout come from the caller's options over the defaults (schemas.ts).
 
 import type { AddOn } from "./addon.ts";
 import { baohan } from "./baohan.ts";
@@ -24,7 +25,7 @@ import { profiles } from "./profile.ts";
 import {
   baohanDefaults,
   biDefaults,
-  type Centre,
+  type Consolidation,
   detailDefaults,
   duanDefaults,
   type Fractal,
@@ -33,9 +34,12 @@ import {
   klineDefaults,
   layoutDefaults,
   type MergedBar,
+  type Move,
   type Options,
   profileDefaults,
   profileParamsDefaults,
+  type Run,
+  type Segment,
   type Stroke,
   shownDefaults,
   volumeDefaults,
@@ -104,26 +108,21 @@ export type Effective = ReturnType<typeof effective>;
 
 export type Components = {
   readonly title: string;
-  // the prices are held as whole numbers, the price times this scale
+  // the K-lines' prices are held inside as whole numbers, the price times this scale, a power of ten
   readonly scale: number;
   // the caller's options; a default for everything left out
   readonly options?: Options;
-  // the K-lines, each a contract's (schemas.ts, xAxisSchema); `located` makes them bars
+  // the K-lines, market's (schemas.ts, xAxisSchema); `located` makes them bars
   readonly xAxis: KLines;
-  readonly merged: readonly MergedBar[];
-  readonly fractals: readonly Fractal[];
-  readonly strokes: readonly Stroke[];
-  // 线段, of the same shape as 笔
-  readonly duan: readonly Stroke[];
-  // 走势 of every level, each with its level
-  readonly zoushi: readonly Stroke[];
-  // 中枢 of every level, each with its level
-  readonly zhongshu: readonly Centre[];
+  // 缠论's records over them, a run of @qi/chanlun's contract, its positions the K-lines' indexes; a run of no record
+  // for a chart of bars alone
+  readonly run: Run;
   // the caller's add-ons, in the order they are shown
   readonly addons: readonly AddOn[];
 };
 
-// the components as `located` gives them, their K-lines bars: what the drawing is made from
+// the components as `located` gives them, their K-lines bars and the run's positions the x-axis's: what the drawing is
+// made from
 export type Bars = Inside<Components>;
 
 // the levels ticked at first: every one, or one
@@ -161,36 +160,43 @@ export const drawing =
       layout.levels[Math.min(level, layout.levels.length - 1)] ?? "cl-muted";
     const on = (level: number): boolean => shown === "all" || shown === level;
     // the one map from a merged bar to its K-lines, for every configuration
-    const loc = locator(c.xAxis, c.merged);
+    const loc = locator(c.run.merged);
     const drawn = layer(e, c, loc);
-    const top = [...c.zhongshu.map((z) => z.level), ...c.zoushi.map((z) => z.level + 1)].reduce(
-      (m, l) => Math.max(m, l),
-      0,
-    );
+    const top = Math.max(c.run.segments.length, c.run.moves.length, c.run.consolidations.length, 1) - 1;
     const levels = Array.from({ length: top + 1 }, (_, level) => level);
-    // a level's 中枢, where it has any
-    const centres = (level: number): readonly Layer<R>[] => {
-      const own: Own<readonly Centre[]> = {
+    // a part's records of a level, none where it holds no such level
+    const levelOf = <T>(part: readonly (readonly T[])[], level: number): readonly T[] => part[level] ?? [];
+    // a level's 线段, 走势 and 中枢, each where it has any
+    const ofLevel = (level: number): readonly Layer<R>[] => {
+      const segments: Own<readonly Segment[]> = {
+        key: `duan${level}`,
+        name: "线段",
+        on: o.duan.show && on(level),
+        fine: o.duan.detail,
+        derive: (x) => levelOf(x.run.segments, level),
+        draw: (en) => (_, at) => lineOf(o.duan.style)(en)(at),
+      };
+      const moves: Own<readonly Move[]> = {
+        key: `zoushi${level}`,
+        name: "走势",
+        on: o.zoushi.show && on(level),
+        fine: o.zoushi.detail,
+        derive: (x) => levelOf(x.run.moves, level),
+        draw: (en) => (_, at) => zoushi(o.zoushi.style)(en)(at),
+      };
+      const centres: Own<readonly Consolidation[]> = {
         key: `zhongshu${level}`,
         name: "中枢",
         on: o.zhongshu.show && on(level),
         fine: o.zhongshu.detail,
-        derive: (x) => x.zhongshu.filter((z) => z.level === level),
-        draw: (en) => (scale, at) => zhongshu(en)(scale, o.zhongshu.style, colourOf)(at),
+        derive: (x) => levelOf(x.run.consolidations, level),
+        draw: (en) => (_, at) => zhongshu(en)(o.zhongshu.style, colourOf)(at),
       };
-      return own.derive(c).length === 0 ? [] : [drawn(own)];
-    };
-    // level L's 线段, the 走势 of level L − 1, where it has any
-    const trends = (level: number): readonly Layer<R>[] => {
-      const own: Own<readonly Stroke[]> = {
-        key: `zoushi${level - 1}`,
-        name: "线段",
-        on: o.zoushi.show && on(level),
-        fine: o.zoushi.detail,
-        derive: (x) => x.zoushi.filter((z) => z.level === level - 1),
-        draw: (en) => (scale, at) => zoushi(o.zoushi.style)(en)(scale)(at),
-      };
-      return own.derive(c).length === 0 ? [] : [drawn(own)];
+      return [
+        ...(segments.derive(c).length === 0 ? [] : [drawn(segments)]),
+        ...(moves.derive(c).length === 0 ? [] : [drawn(moves)]),
+        ...(centres.derive(c).length === 0 ? [] : [drawn(centres)]),
+      ];
     };
     const candles: Own<XAxis> = {
       key: "candles",
@@ -213,15 +219,15 @@ export const drawing =
       name: "包含",
       on: o.merged.show && on(0),
       fine: o.merged.detail,
-      derive: (x) => x.merged,
-      draw: (en) => (scale, at) => baohan(en)(scale, o.merged.style)(at),
+      derive: (x) => x.run.merged,
+      draw: (en) => () => baohan(en)(o.merged.style),
     };
     const fractals: Own<readonly Fractal[]> = {
       key: "fx",
       name: "分型",
       on: o.fx.show && on(0),
       fine: o.fx.detail,
-      derive: (x) => x.fractals,
+      derive: (x) => x.run.fractals,
       draw: (en) => (_, at) => fenxing(en)(o.fx.style)(at),
     };
     const strokes: Own<readonly Stroke[]> = {
@@ -229,16 +235,8 @@ export const drawing =
       name: "笔",
       on: o.bi.show && on(0),
       fine: o.bi.detail,
-      derive: (x) => x.strokes,
-      draw: (en) => (scale, at) => lineOf(o.bi.style)(en)(scale)(at),
-    };
-    const segments: Own<readonly Stroke[]> = {
-      key: "duan",
-      name: "线段",
-      on: o.duan.show && on(0),
-      fine: o.duan.detail,
-      derive: (x) => x.duan,
-      draw: (en) => (scale, at) => lineOf(o.duan.style)(en)(scale)(at),
+      derive: (x) => x.run.strokes,
+      draw: (en) => (_, at) => lineOf(o.bi.style)(en)(at),
     };
     // the add-ons: on the main graph, pane 0; each in a subgraph, the next pane
     const subs = c.addons.filter((a) => a.place === "sub");
@@ -259,9 +257,9 @@ export const drawing =
       subgraph: layout.subgraph,
       look: { dash: layout.dash, font: layout.font, offset: layout.offset },
       apart: [drawn(candles), drawn(volumes), ...addons],
-      // 成交量分布: derived here from the K-lines and the 缠论 data
+      // 成交量分布: derived here from the K-lines and the run
       choice: profiles(e)(c.scale, o.profile.style)(profilesOf(o.profile.params)(c)),
-      // a configuration with no data has no layer, and a level with no layer none (a run of bars only has none)
+      // a kind of record with none has no layer, and a level with no layer none (a chart of bars alone has none)
       groups: levels
         .map((level) => ({
           level,
@@ -270,13 +268,12 @@ export const drawing =
           layers:
             level === 0
               ? [
-                  ...(c.merged.length === 0 ? [] : [drawn(merged)]),
-                  ...(c.fractals.length === 0 ? [] : [drawn(fractals)]),
-                  ...(c.strokes.length === 0 ? [] : [drawn(strokes)]),
-                  ...(c.duan.length === 0 ? [] : [drawn(segments)]),
-                  ...centres(0),
+                  ...(c.run.merged.length === 0 ? [] : [drawn(merged)]),
+                  ...(c.run.fractals.length === 0 ? [] : [drawn(fractals)]),
+                  ...(c.run.strokes.length === 0 ? [] : [drawn(strokes)]),
+                  ...ofLevel(0),
                 ]
-              : [...trends(level), ...centres(level)],
+              : ofLevel(level),
         }))
         .filter((g) => g.layers.length > 0),
     };

@@ -1,15 +1,15 @@
-// The one map from merged bars to K-lines (docs/designs/design-chart-lib-2026-10-24.md, The DSL, layer 2). Every
-// configuration after 包含 is given on merged bars (@qi/chanlun's contracts.ts), and every drawing puts it on K-lines
-// through this map and no other way. A merged bar maps to the K-lines that hold its extreme (its high when it goes
-// up, its low when it goes down), in order: a mark goes at each of them, a line's end or a box's edge at the first.
+// The one map from merged bars to K-lines (docs/designs/design-chart-chanlun-3-2026-11-09.md, Reading the records).
+// Every record after 包含 is on merged bars, by their number (`mIndex`, a merged bar's place among them; @qi/chanlun),
+// and every drawing puts it on K-lines through this map and no other way: a merged bar's `index`, the K-line that
+// represents it, where a 分型's mark, a line's end and a 中枢's edge go; its `extremes`, the K-lines of its extreme, where
+// 包含's marks go; its extreme, its high when it goes up, its low when it goes down, a line's price at its end.
 //
-// Before a chart is drawn, `located` makes its K-lines bars (the market data's; 缠论's are drawn as they are) and
-// checks its components: every merged bar a configuration names exists and has a K-line holding its extreme; each
-// merged bar is numbered once and ends within the x-axis; and the scale, where given, is a positive number.
+// Before a chart is drawn, `located` makes its K-lines bars and the run's positions the x-axis's, and checks the run
+// against the K-lines given beside it, which it does not name: every position of a merged bar is one of the K-lines;
+// each K-line of a merged bar's extremes holds its extreme; every merged bar a record names is the run's.
 
 import { pipe, type QiError, type Result, result } from "@qi/base";
-import type { KLine as MarketKLine } from "@qi/market";
-import type { Bar, Centre, Fractal, KLines, MergedBar, Stroke, XAxis } from "./schemas.ts";
+import type { Bar, KLines, MergedBar, Run, XAxis } from "./schemas.ts";
 
 export type LocateError = QiError<"CHART_LOCATE", "VALIDATION">;
 
@@ -19,33 +19,33 @@ export type LocateError = QiError<"CHART_LOCATE", "VALIDATION">;
 const key: unique symbol = Symbol("located");
 export type Located<C> = { readonly [key]: C };
 export const componentsOf = <C>(l: Located<C>): C => l[key];
-// components as a caller gives them, their K-lines a contract's; as `located` gives them, their K-lines bars
+// components as a caller gives them, their K-lines market's and the run's positions those K-lines' indexes; as
+// `located` gives them, their K-lines bars and the run's positions the x-axis's
 export type Inside<C> = Omit<C, "xAxis"> & { readonly xAxis: XAxis };
 
-// the K-lines of merged bar `m` that hold its extreme
-export const locate =
-  (xs: XAxis) =>
-  (m: MergedBar): readonly number[] =>
-    xs
-      .slice(m.startDate, m.endDate + 1)
-      .flatMap((k, j) => ((m.up ? k.high === m.high : k.low === m.low) ? [m.startDate + j] : []));
-
-// a merged bar's K-lines by its number: all of them, or the first
+// a merged bar by its number: the K-line that represents it, the K-lines of its extreme, its extreme, its direction
 export type Locator = {
-  readonly all: (mno: number) => readonly number[];
-  readonly at: (mno: number) => number | undefined;
+  readonly at: (m: number) => number | undefined;
+  readonly all: (m: number) => readonly number[];
+  readonly extreme: (m: number) => number | undefined;
+  readonly up: (m: number) => boolean | undefined;
 };
 
-export const locator = (xs: XAxis, bars: readonly MergedBar[]): Locator => {
-  const of = new Map(bars.map((m) => [m.mno, locate(xs)(m)]));
-  return { all: (mno) => of.get(mno) ?? [], at: (mno) => of.get(mno)?.[0] };
-};
+export const locator = (bars: readonly MergedBar[]): Locator => ({
+  at: (m) => bars[m]?.index,
+  all: (m) => bars[m]?.extremes ?? [],
+  extreme: (m) => {
+    const b = bars[m];
+    return b === undefined ? undefined : b.up ? b.high : b.low;
+  },
+  up: (m) => bars[m]?.up,
+});
 
-const fault = (message: string, mno: number): LocateError => ({
+const fault = (message: string, mIndex: number): LocateError => ({
   category: "VALIDATION",
   code: "CHART_LOCATE",
   message,
-  context: { mno },
+  context: { mIndex },
 });
 
 // The market data's K-lines as bars (docs/designs/design-chart-online-2026-11-08.md, The two components): a K-line's
@@ -69,7 +69,7 @@ const atScale =
   };
 const barOf =
   (scale: number, first: number) =>
-  (k: MarketKLine, i: number): Result<Bar, LocateError> => {
+  (k: KLines[number], i: number): Result<Bar, LocateError> => {
     const [open, high, low, close] = [k.open, k.high, k.low, k.close].map(atScale(scale));
     return k.index !== first + i
       ? result.failure(fault(`K-line ${k.index}: the index after ${first + i - 1} is ${first + i}`, -1))
@@ -81,87 +81,97 @@ const barOf =
             )
           : result.success({ date: k.date / 1000, open, high, low, close, volume: k.volume });
   };
-const bars = (scale: number | undefined, ks: KLines): Result<XAxis, LocateError> => {
-  const market = ks.flatMap((k) => ("index" in k ? [k] : []));
-  return market.length === 0
-    ? result.success(ks.flatMap((k) => ("index" in k ? [] : [k])))
-    : market.length < ks.length
-      ? result.failure(fault("the K-lines are not all of one contract", -1))
-      : scale === undefined || !scales.includes(scale)
-        ? result.failure(fault(`the prices' scale, ${scale}: a power of ten from 1 to 1,000,000`, -1))
-        : result.traverse((x: { readonly k: MarketKLine; readonly i: number }) =>
-            barOf(scale, market[0]?.index ?? 0)(x.k, x.i),
-          )(market.map((k, i) => ({ k, i })));
+const bars = (scale: number, ks: KLines): Result<XAxis, LocateError> =>
+  !scales.includes(scale)
+    ? result.failure(fault(`the prices' scale, ${scale}: a power of ten from 1 to 1,000,000`, -1))
+    : result.traverse((x: { readonly k: KLines[number]; readonly i: number }) =>
+        barOf(scale, ks[0]?.index ?? 0)(x.k, x.i),
+      )(ks.map((k, i) => ({ k, i })));
+
+// a merged bar's positions: the K-line that represents it, its first and last, the one that confirmed its end, those
+// of its extreme
+const positions = (m: MergedBar): readonly number[] => [
+  m.index,
+  m.start,
+  m.end,
+  ...(m.confirmEnd === undefined ? [] : [m.confirmEnd]),
+  ...m.extremes,
+];
+
+// the merged bars each record names: a 分型's, a line's and a 中枢's start, end and confirmation
+const named = (run: Run): readonly number[] => [
+  ...run.fractals.map((f) => f.mIndex),
+  ...[...run.strokes, ...run.segments.flat(), ...run.moves.flat(), ...run.consolidations.flat()].flatMap(
+    (r) => [r.start, r.end, ...(r.confirmEnd === undefined ? [] : [r.confirmEnd])],
+  ),
+];
+
+// The run checked against the K-lines (by their indexes, first to last) and the bars made of them (`xs`, at the
+// scale): the first fault found, or none.
+const unfit = (run: Run, ks: KLines, xs: XAxis, scale: number): LocateError | undefined => {
+  const first = ks[0]?.index ?? 0;
+  const last = ks.at(-1)?.index ?? -1;
+  const outside = run.merged
+    .map((m, i) => ({ i, p: positions(m).find((p) => p < first || p > last) }))
+    .find((x) => x.p !== undefined);
+  // each K-line of the extremes holds the extreme, compared at the scale: one finer than the scale holds none
+  const holds = (m: MergedBar) => (p: number) => {
+    const k = xs[p - first];
+    const x = atScale(scale)(m.up ? m.high : m.low);
+    return k !== undefined && x !== undefined && (m.up ? k.high === x : k.low === x);
+  };
+  const loose = run.merged
+    .map((m, i) => ({ i, m, p: m.extremes.find((p) => !holds(m)(p)) }))
+    .find((x) => x.p !== undefined);
+  const unknown = named(run).find((b) => b >= run.merged.length);
+  return outside !== undefined
+    ? fault(`merged bar ${outside.i}: K-line ${outside.p} is none of the K-lines given`, outside.i)
+    : loose !== undefined
+      ? fault(
+          `merged bar ${loose.i}: K-line ${loose.p} does not hold its ${loose.m.up ? "high" : "low"}, ` +
+            `${loose.m.up ? loose.m.high : loose.m.low}`,
+          loose.i,
+        )
+      : unknown !== undefined
+        ? fault(`merged bar ${unknown} is none of the run's merged bars`, unknown)
+        : undefined;
 };
 
-// what `checked` checks of components: their bars and the 缠论 data on them
-type Shape = {
-  readonly scale?: number;
-  readonly xAxis: XAxis;
-  readonly merged: readonly MergedBar[];
-  readonly fractals: readonly Fractal[];
-  readonly strokes: readonly Stroke[];
-  readonly duan: readonly Stroke[];
-  readonly zoushi: readonly Stroke[];
-  readonly zhongshu: readonly Centre[];
-};
-const checked = <C extends Shape>(c: C): Result<Located<C>, LocateError> => {
-  const loc = locator(c.xAxis, c.merged);
-  const named = [
-    ...c.merged.map((m) => m.mno),
-    ...c.fractals.map((f) => f.mno),
-    ...[...c.strokes, ...c.duan, ...c.zoushi].flatMap((l) => [l.startBar, l.endBar]),
-    ...c.zhongshu.flatMap((z) => [z.startBar, z.endBar, z.ggBar, z.ddBar]),
-  ];
-  const known = new Set(c.merged.map((m) => m.mno));
-  // each merged bar numbered once and within the x-axis; otherwise the map would lose one, or reach past the end
-  const first = new Map([...c.merged].reverse().map((m, i) => [m.mno, c.merged.length - 1 - i]));
-  const twice = c.merged.find((m, i) => first.get(m.mno) !== i);
-  const past = c.merged.find((m) => m.endDate >= c.xAxis.length);
-  return pipe(
-    c.scale !== undefined && !(Number.isFinite(c.scale) && c.scale > 0)
-      ? result.failure(fault(`the prices' scale, ${c.scale}: a positive number`, -1))
-      : twice !== undefined
-        ? result.failure(fault(`merged bar ${twice.mno} is numbered twice`, twice.mno))
-        : past !== undefined
-          ? result.failure(
-              fault(`merged bar ${past.mno} ends at K-line ${past.endDate}, past the x-axis`, past.mno),
-            )
-          : result.success(named),
-    result.flatMap((ns) =>
-      result.traverse((mno: number) =>
-        !known.has(mno)
-          ? result.failure(fault(`merged bar ${mno} is none of the merged bars`, mno))
-          : loc.at(mno) === undefined
-            ? result.failure(fault(`merged bar ${mno} has no K-line of its extreme`, mno))
-            : result.success(mno),
-      )(ns),
-    ),
-    result.map((): Located<C> => ({ [key]: c })),
-  );
-};
+// the run's positions made the x-axis's: each less the first K-line's index
+const rebased =
+  (first: number) =>
+  (run: Run): Run => ({
+    ...run,
+    merged: run.merged.map((m) => ({
+      ...m,
+      index: m.index - first,
+      start: m.start - first,
+      end: m.end - first,
+      ...(m.confirmEnd === undefined ? {} : { confirmEnd: m.confirmEnd - first }),
+      extremes: m.extremes.map((p) => p - first),
+    })),
+  });
 
-// The components, their K-lines made bars, checked: every merged bar they name exists and has a K-line holding its
-// extreme; each merged bar is numbered once and ends within the x-axis; and the scale, where given, is a positive
-// number (a price is drawn divided by it).
+// The components, their K-lines made bars and the run's positions the x-axis's, checked: the scale, the K-lines (their
+// indexes one after another, their dates whole seconds, their prices exact at the scale), and the run against them.
 export const located = <
   C extends {
-    readonly scale?: number;
+    readonly scale: number;
     readonly xAxis: KLines;
-    readonly merged: readonly MergedBar[];
-    readonly fractals: readonly Fractal[];
-    readonly strokes: readonly Stroke[];
-    readonly duan: readonly Stroke[];
-    readonly zoushi: readonly Stroke[];
-    readonly zhongshu: readonly Centre[];
+    readonly run: Run;
   },
 >(
   given: C,
 ): Result<Located<Inside<C>>, LocateError> =>
   pipe(
     bars(given.scale, given.xAxis),
-    // the components with their K-lines replaced by the bars: Inside<C> by construction, of the shape checked
-    result.flatMap(
-      (xAxis): Result<Located<Inside<C>>, LocateError> => checked({ ...given, xAxis } as Inside<C> & Shape),
-    ),
+    result.flatMap((xAxis): Result<Located<Inside<C>>, LocateError> => {
+      const wrong = unfit(given.run, given.xAxis, xAxis, given.scale);
+      // the components with their K-lines replaced by the bars and the run rebased: Inside<C> by construction
+      return wrong !== undefined
+        ? result.failure(wrong)
+        : result.success({
+            [key]: { ...given, xAxis, run: rebased(given.xAxis[0]?.index ?? 0)(given.run) } as Inside<C>,
+          });
+    }),
   );

@@ -1,26 +1,23 @@
-// Everything the chart takes from outside, as schemas (docs/designs/design-chart-lib-2026-10-24.md, The contracts).
-// The data: the x-axis (the K-lines in time order, each a contract's: @qi/chanlun's or @qi/market's) and the price
-// distributions; 缠论's data, the K-line to 中枢, are @qi/chanlun's contracts, passed on below. The settings: each component's style and parameters with their defaults,
-// the layout, and the options a caller gives over them. A component's module holds only its drawing; its style is an
-// input, like its data.
-import { type KLine, klineSchema } from "@qi/chanlun";
-import { klineSchema as marketKlineSchema } from "@qi/market";
+// Everything the chart takes from outside, as schemas (docs/designs/design-chart-chanlun-3-2026-11-09.md, The
+// components). The data: the x-axis (market's K-lines in time order, @qi/market's) and the price distributions;
+// 缠论's data, a run of @qi/chanlun's contract over those K-lines, passed on below. The settings: each component's style
+// and parameters with their defaults, the layout, and the options a caller gives over them. A component's module holds
+// only its drawing; its style is an input, like its data.
+import { klineSchema } from "@qi/market";
 import { z } from "zod";
 import type { DistributionStyle } from "./dsl.ts";
 
-// 缠论's contracts, passed on so the chart's modules import every data type from this one file. They are defined in
-// @qi/chanlun, and the chart's index does not export them again: a taker imports them from @qi/chanlun.
-export {
-  type Centre,
-  centreSchema,
-  type Fractal,
-  fractalSchema,
-  type KLine,
-  klineSchema,
-  type MergedBar,
-  mergedBarSchema,
-  type Stroke,
-  strokeSchema,
+// 缠论's contract, passed on so the chart's modules import every data type from this one file. It is defined in
+// @qi/chanlun, and the chart's index does not export it again: a taker imports it from @qi/chanlun.
+export type {
+  Consolidation,
+  Fractal,
+  Line,
+  MergedBar,
+  Move,
+  Run,
+  Segment,
+  Stroke,
 } from "@qi/chanlun";
 
 // a K-line's position on the x-axis
@@ -29,8 +26,7 @@ const position = z.number().int().nonnegative();
 const price = z.number().int();
 
 // A bar, the library's own form of a K-line inside, which no caller gives (a market K-line is made one by `located`,
-// locate.ts): its time, seconds since 1970, UTC; its prices, whole numbers at the chart's scale; its volume. The
-// chart draws only these fields, so 缠论's K-line is drawn as a bar.
+// locate.ts): its time, seconds since 1970, UTC; its prices, whole numbers at the chart's scale; its volume.
 export const barSchema = z
   .object({
     date: position,
@@ -47,23 +43,17 @@ export const barSchema = z
     "a bar's open and close within its low and high",
   );
 
-// the x-axis as a caller gives it: the K-lines in time order, each a contract's, 缠论's (chanlun 1.1.0, for the chart
-// app's static charts) or the market data's (market 1.1.0), all of one contract (docs/designs/
-// design-chart-online-2026-11-08.md, The two components)
+// the x-axis as a caller gives it: the market data's K-lines (market 1.1.0) in time order
 export const xAxisSchema = z
-  .array(z.union([klineSchema, marketKlineSchema]))
+  .array(klineSchema)
   .min(1)
   .readonly()
-  .refine(
-    (ks) => ks.every((k) => "index" in k) || ks.every((k) => !("index" in k)),
-    "the K-lines all of one contract",
-  )
   .refine(
     (ks) => ks.every((k, i) => i === 0 || (ks[i - 1]?.date ?? k.date) < k.date),
     "the K-lines strictly in time",
   );
 
-// A price distribution over K-lines `from` to `to` (of a 笔, 线段 or 中枢): rows of height `step` from price `low`
+// A price distribution over K-lines `from` to `to` (of a 笔, 线段, 走势 or 中枢): rows of height `step` from price `low`
 // (one row of height 0 if every trade was at one price), each with its up and down volume; `poc` is the point of
 // control's row, `value` the value area's rows. Computed by @qi/indicator's profile and drawn as given.
 const volume = z.number().nonnegative();
@@ -95,7 +85,7 @@ export const profileSchema = z
 // The price distributions of one kind of configuration at one level, one per configuration.
 export const profilesSchema = z
   .object({
-    kind: z.enum(["bi", "duan", "zhongshu"]),
+    kind: z.enum(["bi", "duan", "zoushi", "zhongshu"]),
     level: z.number().int().nonnegative(),
     items: z.array(profileSchema).readonly(),
   })
@@ -105,9 +95,8 @@ export const profilesSchema = z
 export type Bar = z.output<typeof barSchema>;
 // the K-lines as a caller gives them
 export type KLines = z.output<typeof xAxisSchema>;
-// the K-lines inside, as `located` gives them: 缠论's as they are, the market data's made bars; what each drawing and
-// an add-on's derive are given
-export type XAxis = readonly (KLine | Bar)[];
+// the K-lines inside, as `located` gives them, bars: what each drawing and an add-on's derive are given
+export type XAxis = readonly Bar[];
 export type Profile = z.output<typeof profileSchema>;
 export type Profiles = z.output<typeof profilesSchema>;
 
@@ -188,12 +177,10 @@ export const baohanDefaults: BaohanStyle = {
 };
 export const baohanOptions = styleOptions(baohanStyleSchema);
 
-// 分型
-export const fenxingStyleSchema = z
-  .object({ confirmed: colourSchema, unconfirmed: colourSchema, size: sizeSchema })
-  .strict();
+// 分型: one colour, since the contract's 分型 holds no confirmation
+export const fenxingStyleSchema = z.object({ colour: colourSchema, size: sizeSchema }).strict();
 export type FenxingStyle = Readonly<z.output<typeof fenxingStyleSchema>>;
-export const fenxingDefaults: FenxingStyle = { confirmed: "cl-ink", unconfirmed: "cl-muted", size: 0.6 };
+export const fenxingDefaults: FenxingStyle = { colour: "cl-ink", size: 0.6 };
 export const fenxingOptions = styleOptions(fenxingStyleSchema);
 
 // 笔, 线段 and 走势
@@ -203,11 +190,24 @@ export const biDefaults: LineStyle = { colour: "cl-stroke", width: 0.7 };
 export const duanDefaults: LineStyle = { colour: "cl-level", width: 0.7 };
 export const lineOptions = styleOptions(lineStyleSchema);
 
+// 走势: up and down, and `flat` for one whose ends are level, which the records give no direction
 export const zoushiStyleSchema = z
-  .object({ up: colourSchema, down: colourSchema, width: widthSchema, step: z.number().min(0).max(10) })
+  .object({
+    up: colourSchema,
+    down: colourSchema,
+    flat: colourSchema,
+    width: widthSchema,
+    step: z.number().min(0).max(10),
+  })
   .strict();
 export type ZoushiStyle = Readonly<z.output<typeof zoushiStyleSchema>>;
-export const zoushiDefaults: ZoushiStyle = { up: "cl-up", down: "cl-down", width: 1.4, step: 0.7 };
+export const zoushiDefaults: ZoushiStyle = {
+  up: "cl-up",
+  down: "cl-down",
+  flat: "cl-muted",
+  width: 1.4,
+  step: 0.7,
+};
 export const zoushiOptions = styleOptions(zoushiStyleSchema);
 
 // 中枢: the outer box's border and fill, the inner box's fill, and whether each box is shown

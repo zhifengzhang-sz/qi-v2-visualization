@@ -2,9 +2,9 @@
 
 ## The machine
 
-Nix with flakes; no login: everything the project takes is public, the flake's inputs read from GitHub over HTTPS
-and the results' image from GHCR by `crane`. Then the clone, `nix develop`, `make install`, `make results-fetch`. The
-shell gives every tool the targets call (`flake.nix`). A push needs write access to the repository.
+Nix with flakes; no login: everything the project takes is public, the flake's inputs read from GitHub over HTTPS.
+Then the clone, `nix develop`, `make install`. The shell gives every tool the targets call (`flake.nix`). A push needs
+write access to the repository.
 
 ## The files, by kind
 
@@ -12,13 +12,12 @@ shell gives every tool the targets call (`flake.nix`). A push needs write access
 |---|---|---|---|
 | the work | `dev/ts/` (the libraries and the app), `dev/docs/`, `test/data/` | yes | the sessions |
 | what it owns, gives and takes | `PRODUCTS.md` | yes | the sessions, in the commit of the change it describes |
-| the project's machinery | `flake.nix`, `flake.lock`, `results.lock`, `Makefile`, `dev/hooks/`, `dev/scripts/`, `.envrc` | yes | the sessions |
+| the project's machinery | `flake.nix`, `flake.lock`, `Makefile`, `dev/hooks/`, `dev/scripts/`, `.envrc` | yes | the sessions |
 | the state of the work | `docs/opening.md`, `docs/milestones.md`, `docs/designs/`, `docs/research/`, `docs/decisions.md` | yes | each session, at its end |
 | the rules for agents, their source | `agents/` | yes | the sessions, the owner approving |
 | the rules for agents, generated | `AGENTS.md`, `CLAUDE.md`, `.claude/agents/`, `.github/agents/` | no | `make agents`, by the kit |
-| the tools, the kit, `@qi/base` and `@qi/core` (`qi-v2-ts`) | `/nix/store`, pinned by `flake.lock`; `dev/agents`; `dev/ts/node_modules/@qi/` | the pins | `nix develop`, `make install`, `make ts` |
-| the results | `.cache/results/<tag>/`, pinned by `results.lock` | the pin | `make results-fetch` |
-| build output and reports | `dev/ts/**/node_modules/`, `.reports/` (the charts, the engines' scripts) | no | the targets |
+| the tools, the kit, the contracts and their vectors, `@qi/base` and `@qi/core` (`qi-v2-ts`) | `/nix/store`, pinned by `flake.lock`; `dev/agents`; `dev/ts/node_modules/@qi/` | the pins | `nix develop`, `make install`, `make ts` |
+| build output and reports | `dev/ts/**/node_modules/`, `.reports/` (the charts, the engines' scripts, the vectors in the app's input form) | no | the targets |
 | the owner's notes | `todo.md` | no | the owner |
 
 ## Where each rule lives
@@ -35,10 +34,10 @@ shell gives every tool the targets call (`flake.nix`). A push needs write access
 
 ## A session
 
-1. **Start.** `git pull`; `nix develop`; after a change of `flake.lock` or `agents/`, `make install`; after a change
-   of `results.lock`, `make results-fetch`. Then `make locks-check`: each outdated lock reported to the owner with
-   what updates it, none updated without the owner's say.
+1. **Start.** `git pull`; `nix develop`; after a change of `flake.lock` or `agents/`, `make install`. Then `make
+   locks-check`: each outdated lock reported to the owner with what updates it, none updated without the owner's say.
 2. **Work.** The opening's one task. Before the first build of the session, the owner is asked. Checks run in the
-   role `checker` (`make ts`, `chart-check`, `chart-package`, `qi-chart-package`, `products-check`). No fallbacks.
+   role `checker` (`make check`, or the targets it runs: `ts`, `chart-check`, `chart-package`, `qi-chart-package`,
+   `products-check`, `agents-check`; and `chart-static` for a release). No fallbacks.
 3. **End.** `docs/opening.md` rewritten for the next session, `docs/milestones.md` brought up to date; committed by
    explicit paths after the checks pass, and pushed.

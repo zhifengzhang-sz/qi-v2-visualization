@@ -1,48 +1,30 @@
 // The d3fc engine (d3fc.ts): the same drawing as the tv engine's, its primitives as d3fc's shapes at x the K-line's
-// position, through qi-d3fc/1's contract: a block's box and marks, a 分型's circles, a 笔's line, the candles coloured
-// by their direction; the layers and groups as the drawing gives them.
+// position, through qi-d3fc/1's contract: a merged bar's box and marks, the candles coloured by their direction; the
+// layers and groups as the drawing gives them.
 
 import { result } from "@qi/base";
-import { type KLine, klinesSchema, type MergedBar } from "@qi/chanlun";
-import { decode } from "@qi/core";
 import { describe, expect, it } from "vitest";
 import { marginsSchema } from "../src/dsl.ts";
 import { type D3fc, d3fcChart, d3fcSchema } from "../src/index.ts";
+import { merged, ranges, run } from "./records.ts";
 
-const xs: readonly KLine[] = result.getOrElse((): readonly KLine[] => [])(
-  decode(klinesSchema)(
-    [
-      [10, 20],
-      [12, 25],
-      [15, 25],
-    ].map(([low = 0, high = 0], i) => ({
-      rno: i,
-      date: 60 * (i + 1),
-      up: true,
-      open: low,
-      high,
-      low,
-      close: high,
-      volume: 0,
-      confirmRno: 0,
-      confirmDate: i,
-      stored: 1,
-    })),
-  ),
+const xs = ranges(
+  [
+    [10, 20],
+    [12, 25],
+    [15, 25],
+  ],
+  10,
 );
-const merged: readonly MergedBar[] = [
-  {
-    rno: 2,
-    mno: 0,
-    up: true,
-    high: 25,
-    low: 15,
-    startDate: 1,
-    confirmStartDate: 1,
-    endDate: 2,
-    stored: 0,
-  },
-];
+// one merged bar over K-lines 1 and 2, going up, its high 2.5 on both, still merging
+const { confirmEnd: _, ...bar } = merged({
+  index: 1,
+  high: 2.5,
+  low: 1.5,
+  start: 1,
+  end: 2,
+  extremes: [1, 2],
+});
 
 const out = (): D3fc | string =>
   result.match(
@@ -53,12 +35,7 @@ const out = (): D3fc | string =>
       title: "t",
       scale: 10,
       xAxis: xs,
-      merged,
-      fractals: [],
-      strokes: [],
-      duan: [],
-      zoushi: [],
-      zhongshu: [],
+      run: run({ merged: [bar] }),
       addons: [],
     }),
   );
@@ -73,7 +50,7 @@ describe("the d3fc engine", () => {
     ]);
   });
 
-  it("draws a block as a box and its extreme's marks, in the layer 包含, the times beside", () => {
+  it("draws a merged bar as a box and its extreme's marks, in the layer 包含, the times beside", () => {
     const d = out();
     const bh = typeof d === "string" ? undefined : d.groups[0]?.layers.find((l) => l.name === "包含");
     expect(bh?.boxes).toEqual([

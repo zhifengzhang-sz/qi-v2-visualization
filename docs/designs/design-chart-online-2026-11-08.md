@@ -36,12 +36,12 @@ guarantee 5 would be lost. So the engines' scripts change, and a page file with 
 ## The two components
 
 **The batch component, as 1.8**, but for its K-line. `Components` (the title, the scale, the options, the x-axis,
-缠论's data by `chanlun` 1.1.0, the add-ons) through `located` to `tvChart`, `d3fcChart` and `tikzChart`; each
-engine's script draws the page data the page gives it. The x-axis's K-line is a contract's: `chanlun` 1.1.0's, for the
-chart app's static charts on `chanlun-results` 0.2.0 and `chanlun` 1.1.0 (`docs/decisions.md`, 2026-11-08), or
-`market` 1.1.0's, in the place of the library's plain bar as an input (`barSchema`, which stays the library's own form
-inside): what a project takes from another conforms to the contracts of `qi-v2-contracts`. `located` makes each market
-K-line a bar:
+缠论's data, the add-ons) through `located` to `tvChart`, `d3fcChart` and `tikzChart`; each engine's script draws the
+page data the page gives it. The x-axis's K-line is `market` 1.1.0's, in the place of the library's plain bar as an
+input (`barSchema`, which stays the library's own form inside): what a project takes from another conforms to the
+contracts of `qi-v2-contracts`. In 2.0 the x-axis could also be `chanlun` 1.1.0's K-line, for the chart app's static
+charts on `chanlun-results` 0.2.0; since version 3 it is market's alone, and 缠论's data a run of `chanlun` 3.1.0 beside
+it (`design-chart-chanlun-3-2026-11-09.md`). `located` makes each market K-line a bar:
 
 - its position its `index` less the first K-line's, the indexes one after another;
 - its date in whole seconds; a date that is not a whole second is refused, since both engines' page data hold whole
@@ -182,7 +182,7 @@ Left, each for a version of its own:
 - dates finer than a second, which the contract allows: both engines' page data hold seconds, and a later version
   takes such dates, every part taking the contract whole (`docs/decisions.md`, 2026-11-08);
 - the batch's `chanlun` 1.1.0, kept as the input of the app's static charts while the app keeps them
-  (`docs/decisions.md`, 2026-11-08).
+  (`docs/decisions.md`, 2026-11-08): gone in version 3 (`design-chart-chanlun-3-2026-11-09.md`).
 
 ## How the release is checked
 
@@ -222,12 +222,13 @@ Before 2.0.0 is published, each check in the role `checker`:
 ## What changes for the chart app
 
 - It takes `@qi/chart` 2.0.0. Its static charts are as they are, on `chanlun-results` 0.2.0 and `chanlun` 1.1.0, their
-  page data and pictures 1.8.0's (guarantee 1); its pages differ only by the code they carry.
+  page data and pictures 1.8.0's (guarantee 1); its pages differ only by the code they carry. (Since version 3 it takes
+  no results: `design-chart-chanlun-3-2026-11-09.md`, The chart app.)
 - Its bars alone are given to the batch as market's K-lines made from its run's bars as the run holds them (`in.csv`,
   `src/input.ts`'s `barsFile`: the date in seconds, the prices at the request's scale, the volume a whole number):
   each an index from 0, its date in milliseconds, its prices as decimals at the scale, its volume that whole number.
   So the bars are 1.8's, and the page data with them.
-- It gains an online page: a replay of a run of bars, its CSV (`make chart INPUT= REQUEST= CHANLUN=none ONLINE=N`), in
+- It gains an online page: a replay of a run of bars, its CSV (`make chart INPUT= REQUEST= ONLINE=N`), in
   both engines. All but the last N K-lines are drawn by the batch; then each of the last N comes to the online
   component as ongoing K-lines that reach its values, then its complete K-line, all market's records made from the
   app's bars. Why: the online component needs a caller in a browser for its check (How the release is checked, 3) and

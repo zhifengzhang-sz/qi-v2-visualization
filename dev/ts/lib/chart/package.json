@@ -1,7 +1,8 @@
 {
   "name": "@qi/chart",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "a 缠论 drawing library: its contracts, the DSL, its components (derive and draw) and two engines, tv (Lightweight Charts) and d3fc (docs/designs/design-chart-lib-2026-10-24.md)",
   "exports": {

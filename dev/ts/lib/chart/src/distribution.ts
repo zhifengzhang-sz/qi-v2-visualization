@@ -1,12 +1,12 @@
-// 成交量分布's data (docs/designs/design-chart-lib-2026-10-24.md, Components): a price distribution over the
-// K-lines of each 笔, each level's 线段 (at level L above 0, the 走势 of level L − 1) and each level's 中枢, from its
-// start merged bar's K-line to its end merged bar's (the one map, locate.ts). Computed by @qi/indicator's profile,
-// volumes rounded to whole shares. The rows are the parameter's (24 by default), but never more than the whole cents
-// the item spans, so a short 笔 has fewer.
+// 成交量分布's data (docs/designs/design-chart-chanlun-3-2026-11-09.md, Reading the records): a price distribution over
+// the K-lines of each 笔, each level's 线段, 走势 and 中枢, from the K-line that represents its start merged bar to the
+// one that represents its end merged bar (the one map, locate.ts). Computed by @qi/indicator's profile, volumes rounded
+// to whole shares. The rows are the parameter's (24 by default), but never more than the whole cents the item spans,
+// so a short 笔 has fewer.
 
 import { profile, rowsSchema } from "@qi/indicator";
 import { locator } from "./locate.ts";
-import type { Centre, MergedBar, Profile, ProfileParams, Profiles, Stroke, XAxis } from "./schemas.ts";
+import type { Profile, ProfileParams, Profiles, Run, XAxis } from "./schemas.ts";
 
 // the distribution over K-lines `from` to `to`; none if they are not on the x-axis
 const over =
@@ -46,31 +46,17 @@ const set = (
 
 export const profilesOf =
   (p: ProfileParams) =>
-  (c: {
-    readonly scale: number;
-    readonly xAxis: XAxis;
-    readonly merged: readonly MergedBar[];
-    readonly strokes: readonly Stroke[];
-    readonly duan: readonly Stroke[];
-    readonly zoushi: readonly Stroke[];
-    readonly zhongshu: readonly Centre[];
-  }): readonly Profiles[] => {
+  (c: { readonly scale: number; readonly xAxis: XAxis; readonly run: Run }): readonly Profiles[] => {
     const of = over(c.xAxis, c.scale, p.rows);
-    const loc = locator(c.xAxis, c.merged);
-    const line = (s: Stroke) => of(loc.at(s.startBar), loc.at(s.endBar));
-    const top = Math.max(0, ...c.zhongshu.map((z) => z.level), ...c.zoushi.map((z) => z.level + 1));
+    const loc = locator(c.run.merged);
+    const span = (r: { readonly start: number; readonly end: number }) => of(loc.at(r.start), loc.at(r.end));
+    const top = Math.max(c.run.segments.length, c.run.moves.length, c.run.consolidations.length, 1) - 1;
     const levels = Array.from({ length: top + 1 }, (_, level) => level);
+    const levelOf = <T>(part: readonly (readonly T[])[], level: number): readonly T[] => part[level] ?? [];
     return [
-      ...set("bi", 0, c.strokes.map(line)),
-      ...levels.flatMap((level) =>
-        set("duan", level, (level === 0 ? c.duan : c.zoushi.filter((z) => z.level === level - 1)).map(line)),
-      ),
-      ...levels.flatMap((level) =>
-        set(
-          "zhongshu",
-          level,
-          c.zhongshu.filter((z) => z.level === level).map((z) => of(loc.at(z.startBar), loc.at(z.endBar))),
-        ),
-      ),
+      ...set("bi", 0, c.run.strokes.map(span)),
+      ...levels.flatMap((level) => set("duan", level, levelOf(c.run.segments, level).map(span))),
+      ...levels.flatMap((level) => set("zoushi", level, levelOf(c.run.moves, level).map(span))),
+      ...levels.flatMap((level) => set("zhongshu", level, levelOf(c.run.consolidations, level).map(span))),
     ];
   };

@@ -22,11 +22,11 @@ TABLE = [
     ("dev/scripts/chart-browser-check.ts", ["chart-check"]),
     ("dev/scripts/chart-online-check.ts", ["chart-check"]),
     ("dev/scripts/qi-chart-taker.ts", ["qi-chart-package"]),
-    ("dev/scripts/results.py", ["chart-check", "chart-package"]),
+    ("dev/scripts/vectors.ts", ["chart-check", "chart-package"]),
     ("test/data/", ["chart-check", "chart-package"]),
-    ("results.lock", ["chart-check", "chart-package", "products-check"]),
     ("PRODUCTS.md", ["products-check"]),
-    ("flake.lock", ["products-check"]),
+    # the contracts' packages and vectors among the inputs
+    ("flake.lock", ["ts", "chart-check", "chart-package", "qi-chart-package", "products-check"]),
     ("agents/", ["agents-check"]),
 ]
 

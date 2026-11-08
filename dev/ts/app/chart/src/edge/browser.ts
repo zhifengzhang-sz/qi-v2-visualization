@@ -209,14 +209,11 @@ const mount = (): void => {
       Object.entries(shows(settings))
         .filter(([key, on]) => was[key] !== on)
         .forEach(([key, on]) => {
-          // a level above 0 names its 走势 its 线段
+          // each layer's section by its name, a level's 线段, 走势 and 中枢 among them
           [
             ...l.apart.map((x) => ({ id: x.id, section: sectionOf(x.name, settings) })),
             ...l.levels.flatMap((g) =>
-              g.items.map((x) => ({
-                id: x.id,
-                section: g.level > 0 && x.name === "线段" ? "chart.zoushi" : sectionOf(x.name, settings),
-              })),
+              g.items.map((x) => ({ id: x.id, section: sectionOf(x.name, settings) })),
             ),
           ]
             .filter((x) => x.section === key)

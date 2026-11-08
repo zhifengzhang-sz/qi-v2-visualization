@@ -4,7 +4,6 @@
 
 import { pipe, result } from "@qi/base";
 import type { Engine, Value, XAxis } from "@qi/chart";
-import { xAxisSchema } from "@qi/chart";
 import { decode } from "@qi/core";
 import { describe, expect, it } from "vitest";
 import { indicators } from "../src/indicators.ts";
@@ -48,22 +47,14 @@ const seen: Engine<Drawn> = {
 };
 
 // six K-lines closing at 1.00 to 6.00, at a scale of 100
-const xs: XAxis = result.getOrElse((): XAxis => [])(
-  decode(xAxisSchema)(
-    [100, 200, 300, 400, 500, 600].map((c, i) => ({
-      rno: i,
-      date: 60 * (i + 1),
-      up: true,
-      open: c,
-      high: c,
-      low: c,
-      close: c,
-      volume: 0,
-      confirmRno: 0,
-      stored: 1,
-    })),
-  ),
-);
+const xs: XAxis = [100, 200, 300, 400, 500, 600].map((c, i) => ({
+  date: 60 * (i + 1),
+  open: c,
+  high: c,
+  low: c,
+  close: c,
+  volume: 0,
+}));
 
 const drawnOf = (before: readonly number[]) =>
   result.getOrElse((): readonly Drawn[] => [])(
@@ -114,7 +105,7 @@ describe("indicators", () => {
         ) =>
           as.flatMap((a) =>
             a.parts(seen)(
-              [...xs].reverse().map((k, i) => ({ ...k, rno: i, date: 60 * (i + 1) })),
+              [...xs].reverse().map((k, i) => ({ ...k, date: 60 * (i + 1) })),
               1,
             ),
           ),

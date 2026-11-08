@@ -2,8 +2,6 @@
 // pane it gives, the main graph's 0 or the next subgraph's; each a box after 成交量, in the order given.
 
 import { result } from "@qi/base";
-import { type KLine, klinesSchema } from "@qi/chanlun";
-import { decode } from "@qi/core";
 import { describe, expect, it } from "vitest";
 import {
   type AddOn,
@@ -16,6 +14,7 @@ import {
   located,
   tvChart,
 } from "../src/index.ts";
+import { klines, run } from "./records.ts";
 
 const words: Engine<string> = {
   candle: (at) => `candle ${at}`,
@@ -27,22 +26,8 @@ const words: Engine<string> = {
   profile: (from, to) => `profile ${from}-${to}`,
 };
 
-const xs: readonly KLine[] = result.getOrElse((): readonly KLine[] => [])(
-  decode(klinesSchema)(
-    [1, 2, 3].map((c, i) => ({
-      rno: i,
-      date: 60 * (i + 1),
-      up: true,
-      open: c,
-      high: c,
-      low: c,
-      close: c,
-      volume: 0,
-      confirmRno: 0,
-      stored: 1,
-    })),
-  ),
-);
+// three K-lines closing at 1, 2, 3, at the scale 1
+const xs = klines([1, 2, 3].map((c) => ({ open: c, high: c, low: c, close: c })));
 
 // an add-on whose data is its K-lines' closes times its parameter, 2, drawn as a line in its style's colour where the
 // library places it
@@ -75,12 +60,7 @@ const drawn = (addons: readonly AddOn[]) =>
       title: "t",
       scale: 1,
       xAxis: xs,
-      merged: [],
-      fractals: [],
-      strokes: [],
-      duan: [],
-      zoushi: [],
-      zhongshu: [],
+      run: run(),
       addons,
     }),
   );
@@ -102,12 +82,7 @@ describe("add-ons", () => {
       title: "t",
       scale: 1,
       xAxis: xs,
-      merged: [],
-      fractals: [],
-      strokes: [],
-      duan: [],
-      zoushi: [],
-      zhongshu: [],
+      run: run(),
       addons: [doubled("a", "main"), doubled("b", "sub")],
     };
     const panes = result.match(

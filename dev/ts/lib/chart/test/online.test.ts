@@ -27,6 +27,7 @@ import {
   tvTail,
 } from "../src/index.ts";
 import { componentsOf } from "../src/locate.ts";
+import { merged, run } from "./records.ts";
 
 // a sum of the last three closes on the main graph, and the closes less the opens in a subgraph, as bars
 const sum3: AddOn = addOn({
@@ -83,12 +84,7 @@ const chartOf = (ks: readonly KLine[], addons: readonly AddOn[] = [sum3, body]):
   title: "online",
   scale: 100,
   xAxis: ks,
-  merged: [],
-  fractals: [],
-  strokes: [],
-  duan: [],
-  zoushi: [],
-  zhongshu: [],
+  run: run(),
   addons,
 });
 
@@ -219,37 +215,20 @@ describe("the online component's rules", () => {
     expect(code(complete(o, { ...next(2 * minute), high: 2 ** 53 }))).toBe("ONLINE_KLINE");
     expect(o.components.xAxis).toHaveLength(2);
   });
-  it("refuses a chart of 缠论's K-lines or with 缠论 data, and an add-on drawing more than series", () => {
+  it("refuses a chart of no K-line or with 缠论 data, and an add-on drawing more than series", () => {
     expect(code(online(chartOf([])))).toBe("ONLINE_START");
     expect(code(online(chartOf([kline(0, 0, 100, 100, 0, 0), kline(2, minute, 100, 100, 0, 0)])))).toBe(
       "ONLINE_KLINE",
     );
     expect(code(online({ ...chartOf([kline(0, 0, 100, 100, 0, 0)]), scale: 50 }))).toBe("ONLINE_KLINE");
-    const chanlun = {
-      rno: 0,
-      date: 60,
-      up: true,
-      open: 1,
-      high: 1,
-      low: 1,
-      close: 1,
-      volume: 0,
-      confirmRno: 0,
-    };
-    expect(code(online({ ...chartOf([]), xAxis: [{ ...chanlun, stored: 1 }] }))).toBe("ONLINE_START");
-    const merged = {
-      rno: 0,
-      mno: 0,
-      up: true,
-      high: 1,
-      low: 1,
-      startDate: 0,
-      endDate: 0,
-      stored: 1 as const,
-    };
-    expect(code(online({ ...chartOf([kline(0, 0, 100, 100, 0, 0)]), merged: [merged] as never }))).toBe(
-      "ONLINE_START",
-    );
+    expect(
+      code(
+        online({
+          ...chartOf([kline(0, 0, 100, 100, 0, 0)]),
+          run: run({ merged: [merged({ high: 100, low: 100 })] }),
+        }),
+      ),
+    ).toBe("ONLINE_START");
     // a mark only once there are three K-lines: refused at the update that draws it
     const marking = addOn({
       key: "m",

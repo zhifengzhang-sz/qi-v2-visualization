@@ -1,4 +1,4 @@
-> Copied with `@qi/chart` and the chart app at version 1.8 (`docs/decisions.md`, 2026-10-28). It describes the code as copied, version 1.8. Version 2 is written here.
+> Copied with `@qi/chart` and the chart app at version 1.8 (`docs/decisions.md`, 2026-10-28). It describes the library as it stands, but for its structure's records and how they are drawn, version 3's: `design-chart-chanlun-3-2026-11-09.md`, which replaces The contracts and the DSL's layer 2 below. Version 2 is `design-chart-online-2026-11-08.md`.
 
 # @qi/chart: a 缠论 drawing library (2026-10-24)
 
@@ -129,30 +129,17 @@ primitive draws, which is a new primitive, every engine implementing it (a draw 
 
 ## The contracts
 
-缠论's data are the records of 缠论's contract, `@qi/chanlun` (`chanlun-1.1.0` of `qi-v2-contracts`, its
-`chanlun/SPEC.md`; the flake input `contracts`, linked at `dev/ts/node_modules/@qi/chanlun` by `make chanlun-link`;
-they are not the chart's, and they chain, each step's output the next step's input: the K-line into 包含, the merged bar out of it and into 分型, and so on); the chart takes them as they are, through its `schemas.ts`, which holds its own: the x-axis and the price distribution. One a configuration: the x-axis (the K-lines in time order), the merged bar (包含),
-the 分型, the line (笔, 线段, 走势; each with its level), the 中枢, and the price distribution. Every field the
-producer gives is kept; a date is the position of its K-line on the x-axis (from 0), a date not set absent.
+缠论's data are a run of 缠论's contract, `@qi/chanlun` (`chanlun-3.1.0` of `qi-v2-contracts`, its `chanlun/SPEC.md`;
+the flake input `contracts`, linked at `dev/ts/node_modules/@qi/chanlun` by `make chanlun-link`), over the market data's
+K-lines (`@qi/market`, `market-1.1.0`), given beside it as the x-axis: what the records are, how the library takes and
+checks them, and how each is drawn is `design-chart-chanlun-3-2026-11-09.md` (The components, Reading the records, The
+levels). The chart takes them as they are, through its `schemas.ts`, which holds its own: the x-axis and the price
+distribution.
 
 Beside them, the caller gives the chart's title, the prices' scale (how they are held, exactly) and its options
 (Version 1.7), among them the layout's digits a price is shown to (`options.layout.digits`, 2 by default; every engine
 writes every price to them, the axes, the legend, the pointer and the picture; how a run is
 shown is the app's settings, not derived from the scale).
-
-Every configuration after 包含 is on merged bars, by their number (`mno`):
-
-- a merged bar: its number, its first and last K-lines, its high and low, its direction;
-- a 分型: its merged bar (`mno`), a top (`ding`) or a bottom;
-- a line: its start and end merged bars (`startBar`, `endBar`), up (`isUp`) or down;
-- a 中枢: its start and end merged bars (`startBar`, `endBar`), the merged bars of its GG and DD (`ggBar`, `ddBar`).
-
-Their rules, beside each field's: a 中枢's band within its range (DD ≤ ZD ≤ ZG ≤ GG); `located` takes the components
-only where each merged bar's number is its own, its K-lines the x-axis' own, and every merged bar a configuration
-names one of them with a K-line of its extreme. The page data's: margins that leave some height (top and bottom below
-1 together), `qi-d3fc/1`'s times strictly increasing.
-
-No configuration's contract carries the K-line of an extreme: the library locates it (The DSL, layer 2).
 
 A price distribution (`profileSchema`) is an indicator's values, not a configuration: it is over the K-lines `from`
 to `to` its caller computed it on (the app, by the library's one map), from `low`, rows of `step`, each its up and
@@ -168,13 +155,10 @@ A configuration's drawing is composed in three layers, all engine-independent:
 
 1. **The action, in merged bars**: each configuration says which merged bars it is on: 包含 the merged bar itself, a
    分型 its merged bar, a line its start and end merged bars, a 中枢 its start and end merged bars.
-2. **The K-lines, one map for every configuration** (`locate.ts`): a merged bar's K-lines are those that hold its
-   extreme, its high when it goes up, its low when down, in order. A mark is put at each; a line's end and a 中枢's
-   box edge at the first; 包含's own box spans the merged bar's first and last K-lines, which its contract gives. No
-   drawing finds an extreme's K-line any other way. Before a chart is drawn its components are checked (`located`):
-   every merged bar a configuration names is one of the merged bars, and every merged bar holds its extreme on one of
-   its K-lines; a chart that fails either is refused whole. A chart is drawn only from checked components: `drawing`
-   takes nothing else.
+2. **The K-lines, one map for every configuration** (`locate.ts`): a merged bar's `index` and `extremes`, as the
+   contract gives them (`design-chart-chanlun-3-2026-11-09.md`, Reading the records). No drawing finds a K-line any
+   other way. Before a chart is drawn its components are checked (`located`, The components there); a chart that fails
+   is refused whole. A chart is drawn only from checked components: `drawing` takes nothing else.
 3. **The primitives, in K-lines**: draw a line between two points, draw a box, put a mark at a K-line, draw a series
    of values at the K-lines, draw a price distribution over K-lines.
 
@@ -183,10 +167,10 @@ computation its display needs, layer 2 first.
 
 | Configuration | Composed of | State |
 |---|---|---|
-| 包含 (`baohan.ts`) | a box from its first K-line to its last, low to high; a mark at each K-line `locate` gives | done |
-| 分型 (`fenxing.ts`) | a mark at each K-line `locate` gives, above a top, below a bottom | done |
-| 笔, 线段, 走势 (`lines.ts`) | a line from the start's K-line to the end's, by `locate` | done |
-| 中枢 (`zhongshu.ts`) | a box DD to GG lightly filled, a box ZD to ZG filled darker, in its level's colour, from its start's K-line to its end's, by `locate` | done |
+| 包含 (`baohan.ts`) | a box from its first K-line to its last, low to high; a mark at each K-line of its `extremes` | done |
+| 分型 (`fenxing.ts`) | a mark at its merged bar's `index`, above a top, below a bottom | done |
+| 笔, 线段, 走势 (`lines.ts`) | a line from the start merged bar's `index` at its extreme to the end's | done |
+| 中枢 (`zhongshu.ts`) | a box DD to GG lightly filled, a box ZD to ZG filled darker, in its level's colour, from its start merged bar's `index` to its end's | done |
 | K-line (`kline.ts`) | the candles | done |
 | 成交量 (`volume.ts`) | a series, bars in the candles' colours at 0.4, in the main graph's bottom quarter behind the candles, on a scale of its own with no axis; its value in the legend, 量 | done |
 | 成交量分布 (`profile.ts`) | a profile each, over its K-lines (the configuration's, by `locate`), shown while the pointer is on one of them: its rows as bars from the price axis, up and down in the candles' colours, the value area at the volume's 0.4 and the rest at half, the longest a quarter of the width; the K-lines outlined, the point of control a line across them to the axis | done |
@@ -198,14 +182,13 @@ the pointer, where it has one (a name, and its value written as a price or a vol
 graph's whole height, a twentieth spare above and below (the drawing's `prices`). The volume follows TradingView's:
 no axis, read in the legend.
 
-Style is said in the DSL's terms: a palette colour, a width, solid or dashed; and by the confirmations, nothing without
-`confirmStartDate`, dashed without `confirmEndDate`, solid with it.
+Style is said in the DSL's terms: a palette colour, a width, solid or dashed; and by the confirmation, dashed without
+`confirmEnd`, solid with it.
 
 The groups of the page are the DSL's too, engine-independent: K线 and 成交量 apart; a group a level with its own box
-(级别 0: 包含, 分型, 笔, 线段, 中枢; 级别 L: its 线段, the 走势 of level L − 1, and its 中枢); 包含 and 分型 shown only
-below 1,500 K-lines in view, 分型 not ticked at first. A choice is layers of which one at most is shown, picked in a
-pull-down, none at first: 成交量分布, a layer for 笔 and for each level's 线段 and 中枢; the pointer picks which item of
-it is drawn.
+(级别 L: its 线段, its 走势 and its 中枢; 级别 0's also 包含, 分型 and 笔); 包含 and 分型 shown only below 1,500 K-lines
+in view, 分型 not ticked at first. A choice is layers of which one at most is shown, picked in a pull-down, none at
+first: 成交量分布, a layer for 笔 and for each level's 线段, 走势 and 中枢; the pointer picks which item of it is drawn.
 
 ## The engines
 
@@ -275,6 +258,10 @@ implementing them taught, each library's rules and how a page is checked: `desig
    released whole as 2.0.0, the tag `qi-chart-2.0.0`, then as 2.0.1, the tag `qi-chart-2.0.1`, its files changed and
    not its code (`@qi/base` and `@qi/core` from `qi-v2-ts`). The commit tagged `qi-chart-2.0.0` is of the earlier
    history, which this repository does not hold; its history begins at 2.0.1's tree (`docs/decisions.md`, 2026-11-08).
+3. **Version 3, the structure on `chanlun` 3.1.0**: the structure a caller gives is `chanlun` 3.1.0's run, the
+   K-lines beside it `market` 1.1.0's, drawn as the contract's Reading the records says, each record at its own level;
+   nothing of `chanlun` 1.1.0. Its design: `design-chart-chanlun-3-2026-11-09.md`, which replaces The contracts and
+   The DSL's layer 2 above. Released whole as 3.0.0, the tag `qi-chart-3.0.0`.
 
 ## Version 1.7: every value a setting
 
@@ -406,7 +393,7 @@ K-line).
 
 ## Next
 
-1. What version 2's 2.0.0 leaves, each for a version of its own (`design-chart-online-2026-11-08.md`, What 2.0.0
+1. What version 3's 3.0.0 leaves, each for a version of its own (`design-chart-chanlun-3-2026-11-09.md`, What 3.0.0
    holds, and what is left).
 
 ## Open

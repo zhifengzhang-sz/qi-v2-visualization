@@ -3,12 +3,11 @@
 // choice, d3fc's profiles in the choice's layer with its style.
 
 import { result } from "@qi/base";
-import { type KLine, klinesSchema, type MergedBar, type Stroke } from "@qi/chanlun";
-import { decode } from "@qi/core";
 import { describe, expect, it } from "vitest";
 import { type Chart, type D3fc, d3fcChart, type Engine, type Layers, tvChart } from "../src/index.ts";
 import { profileChoice, profiles } from "../src/profile.ts";
 import { type Profile, profileDefaults } from "../src/schemas.ts";
+import { klines, merged, run } from "./records.ts";
 
 const words: Engine<string> = {
   candle: (at) => `candle ${at}`,
@@ -33,59 +32,20 @@ const item: Profile = {
 
 // four K-lines from 1.00 to 1.02 at a scale of 100, each up with a volume of 1, a merged bar each; one 笔 from merged
 // bar 1 to merged bar 3: its distribution two rows of a cent, 1.5 each, rounded to 2
-const xs: readonly KLine[] = result.getOrElse((): readonly KLine[] => [])(
-  decode(klinesSchema)(
-    [0, 1, 2, 3].map((i) => ({
-      rno: i,
-      date: 60 * (i + 1),
-      up: true,
-      open: 100,
-      high: 102,
-      low: 100,
-      close: 102,
-      volume: 1,
-      confirmRno: 0,
-      stored: 1,
-    })),
-  ),
+const xs = klines(
+  [0, 1, 2, 3].map(() => ({ open: 100, high: 102, low: 100, close: 102, volume: 1 })),
+  100,
 );
 
-const merged: readonly MergedBar[] = xs.map((_, i) => ({
-  rno: i,
-  mno: i,
-  up: true,
-  high: 102,
-  low: 100,
-  startDate: i,
-  endDate: i,
-  stored: 1,
-}));
-
-const stroke: Stroke = {
-  level: -2,
-  isUp: true,
-  startDate: 1,
-  confirmStartDate: 2,
-  endDate: 3,
-  high: 102,
-  low: 100,
-  startRno: 0,
-  endRno: 0,
-  stored: 1,
-  startBar: 1,
-  endBar: 3,
-};
+const bars = xs.map((_, i) =>
+  merged({ index: i, mIndex: i, high: 1.02, low: 1, start: i, end: i, confirmEnd: i, extremes: [i] }),
+);
 
 const components = {
   title: "t",
   scale: 100,
   xAxis: xs,
-  merged,
-  fractals: [],
-  strokes: [stroke],
-  duan: [],
-  zoushi: [],
-  zhongshu: [],
+  run: run({ merged: bars, strokes: [{ start: 1, end: 3 }] }),
   addons: [],
 };
 

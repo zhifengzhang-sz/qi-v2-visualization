@@ -34,11 +34,13 @@ The app of a domain uses the library of its domain: `app/chart` uses `@qi/chart`
   its effects under `src/edge/`, for any app: `@qi/chart` (a 缠论 drawing library,
   `docs/designs/design-chart-lib-2026-10-24.md`, taking 缠论's contract), `@qi/indicator` (the indicators: the
   averages and MACD).
-- **Taken from another project**: `@qi/chanlun`, 缠论's contract (`chanlun-1.1.0` of `qi-v2-contracts`, its
+- **Taken from another project**: `@qi/chanlun`, 缠论's contract (`chanlun-3.1.0` of `qi-v2-contracts`, its
   `chanlun/SPEC.md`; the flake input `contracts`), linked at `dev/ts/node_modules/@qi/chanlun` by `make
   chanlun-link`, which `make ts` runs: outside Bun's workspaces (Bun cannot link into the store's read-only folder),
-  so outside this project's Biome and style too, the contract having its own checks; `dev/ts/app/chart/src/read.ts`
-  reads a run of the published results by its `decodeRun`. `@qi/market`, the market data contract (`market-1.1.0` of
+  so outside this project's Biome and style too, the contract having its own checks; it reads its own `@qi/market` and
+  zod in its package, the same as those here; `dev/ts/app/chart/src/read.ts` reads a run of it beside the bars by its
+  `decodeRun`. The contracts' vectors, at the inputs' tags, are named by the shell (`CHANLUN_VECTORS`,
+  `MARKET_VECTORS`) for `@qi/chart`'s tests and `make vectors`. `@qi/market`, the market data contract (`market-1.1.0` of
   `qi-v2-contracts`, its `market/SPEC.md`; the flake input `market`), the K-lines `@qi/chart` takes, linked at
   `dev/ts/node_modules/@qi/market` by `make market-link`, which `make ts` runs, the same way.
 - **Apps**, `dev/ts/app/<domain>`, `@qi/app-<domain>`: the edge only (the command, its files, its page), each

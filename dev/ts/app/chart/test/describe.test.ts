@@ -7,19 +7,16 @@ import { tvChart } from "@qi/chart";
 import { describe, expect, it } from "vitest";
 import { comingFor, components, historyOf, klinesOf, type PageInput, pageInput } from "../src/describe.ts";
 
-// six K-lines closing at 1.00 to 6.00, at a scale of 100, no structure
+// six bars closing at 1.00 to 6.00, at a scale of 100, and a run of no record
 const ks = [100, 200, 300, 400, 500, 600].map((c, i) => ({
-  rno: i,
   date: 60 * (i + 1),
-  up: true,
   open: c,
   high: c,
   low: c,
   close: c,
   volume: 0,
-  confirmRno: 0,
-  stored: 1,
 }));
+const none = { merged: [], fractals: [], strokes: [], segments: [], moves: [], consolidations: [] };
 const raw = {
   title: "t",
   scale: 100,
@@ -27,12 +24,7 @@ const raw = {
   settings: { averages: [{ params: { period: 2 } }], macd: { params: { fast: 2, slow: 3, signal: 2 } } },
   history: [50],
   xAxis: ks,
-  merged: [],
-  fractals: [],
-  strokes: [],
-  duan: [],
-  zoushi: [],
-  zhongshu: [],
+  run: none,
 };
 
 describe("a page's input", () => {
@@ -43,6 +35,8 @@ describe("a page's input", () => {
     expect(pageInput({ ...raw, extra: 1 }).tag).toBe("failure");
     // a K-line whose close is above its high
     expect(pageInput({ ...raw, xAxis: [{ ...ks[0], close: 900 }] }).tag).toBe("failure");
+    // a run the contract refuses: a 分型 at a merged bar the run does not have
+    expect(pageInput({ ...raw, run: { ...none, fractals: [{ mIndex: 0 }] } }).tag).toBe("failure");
   });
 
   it("makes the components, the add-ons by its settings and from the closes before the run", () => {
@@ -85,8 +79,7 @@ const bars = [
 }));
 
 describe("the K-lines the library takes (docs/designs/design-chart-online-2026-11-08.md)", () => {
-  it("are 缠论's as they are, and a run's bars made market's: an index from 0, milliseconds, decimals", () => {
-    expect(klinesOf(ks, 100)).toEqual(ks);
+  it("are a run's bars made market's: an index from 0, milliseconds, decimals", () => {
     expect(klinesOf(bars, 100)).toEqual([
       { index: 0, date: 60_000, open: 100, high: 100.55, low: 99.9, close: 100.5, volume: 3 },
       { index: 1, date: 120_000, open: 100.5, high: 101, low: 100, close: 100.1, volume: 0 },

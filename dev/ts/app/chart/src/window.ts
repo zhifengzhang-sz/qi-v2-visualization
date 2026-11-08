@@ -1,15 +1,12 @@
-// A page's window (the K-lines it shows): what of a run a page is given, where the run is longer than the page should
-// carry. The 缠论 structure is always the whole series' (the run computes it over every bar); the window only chooses
-// what the page gets, so a configuration looks in the window exactly as it does in the whole series:
-// - the window's K-lines;
-// - the configurations wholly inside it, their positions moved to the window's first K-line, their confirmations as
-//   the whole series has them (a confirmation after the window's last K-line is kept, beyond it);
-// - the closes before the window, after the run's own history, so that the indicators start from the whole series.
-// A configuration that crosses an edge of the window is not given.
+// A page's window (the K-lines it shows): what of a run of bars alone a page is given, where the run is longer than
+// the page should carry: the window's K-lines, and the closes before the window, after the run's own history, so that
+// the indicators start from the whole series. A run with 缠论's records beside its bars has no window
+// (docs/designs/design-chart-chanlun-3-2026-11-09.md, The chart app): its merged bars are numbered by their place, so
+// a window would number every record again and cut the confirmations past its end.
 
 import { type QiError, type Result, result } from "@qi/base";
-import type { Stroke } from "@qi/chanlun";
-import { calendar, civil, days, epoch, type Structure } from "./read.ts";
+import type { XAxis } from "@qi/chart";
+import { calendar, civil, days, epoch } from "./read.ts";
 
 export type WindowError = QiError<"CHART_WINDOW", "VALIDATION">;
 
@@ -69,67 +66,10 @@ export const span = (times: readonly number[], w: Window): Result<readonly [numb
     : result.success([a, b] as const);
 };
 
-// The page's part of a run's structure, K-lines a to b, and the closes before them.
+// The page's part of a run's bars, K-lines a to b, and the closes before them.
 export const windowed =
   (a: number, b: number) =>
-  (
-    s: Structure,
-    history: readonly number[],
-  ): { readonly structure: Structure; readonly history: readonly number[] } => {
-    const at = (p: number): number => p - a;
-    // an optional position, moved where it is there
-    const opt = <K extends string>(k: K, p: number | undefined): { readonly [P in K]?: number } =>
-      p === undefined ? {} : ({ [k]: at(p) } as { readonly [P in K]: number });
-    const inside = (from: number, to: number): boolean => from >= a && to <= b;
-    const ms = s.ms.filter((m) => inside(m.startDate, m.endDate));
-    const kept = new Set(ms.map((m) => m.mno));
-    const line = (l: Stroke): Stroke => ({
-      ...l,
-      startDate: at(l.startDate),
-      endDate: at(l.endDate),
-      ...opt("confirmStartDate", l.confirmStartDate),
-      ...opt("confirmEndDate", l.confirmEndDate),
-    });
-    const lines = (ls: readonly Stroke[]) =>
-      ls.filter((l) => kept.has(l.startBar) && kept.has(l.endBar)).map(line);
-    return {
-      structure: {
-        xs: s.xs
-          .slice(a, b + 1)
-          .map((k) =>
-            "confirmDate" in k && k.confirmDate !== undefined ? { ...k, confirmDate: at(k.confirmDate) } : k,
-          ),
-        ms: ms.map((m) => ({
-          ...m,
-          startDate: at(m.startDate),
-          endDate: at(m.endDate),
-          ...opt("confirmStartDate", m.confirmStartDate),
-          ...opt("confirmEndDate", m.confirmEndDate),
-        })),
-        fs: s.fs
-          .filter((f) => kept.has(f.mno))
-          .map((f) => ({
-            ...f,
-            date: at(f.date),
-            ...opt("confirmStartDate", f.confirmStartDate),
-            ...opt("confirmEndDate", f.confirmEndDate),
-            ...opt("confirmTurningPointDate", f.confirmTurningPointDate),
-          })),
-        bs: lines(s.bs),
-        ds: lines(s.ds),
-        zs: lines(s.zs),
-        zh: s.zh
-          .filter((z) => [z.startBar, z.endBar, z.ggBar, z.ddBar].every((m) => kept.has(m)))
-          .map((z) => ({
-            ...z,
-            startDate: at(z.startDate),
-            endDate: at(z.endDate),
-            ggDate: at(z.ggDate),
-            ddDate: at(z.ddDate),
-            ...opt("confirmStartDate", z.confirmStartDate),
-            ...opt("confirmEndDate", z.confirmEndDate),
-          })),
-      },
-      history: [...history, ...s.xs.slice(0, a).map((k) => k.close)],
-    };
-  };
+  (xs: XAxis, history: readonly number[]): { readonly xs: XAxis; readonly history: readonly number[] } => ({
+    xs: xs.slice(a, b + 1),
+    history: [...history, ...xs.slice(0, a).map((k) => k.close)],
+  });

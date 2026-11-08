@@ -160,6 +160,50 @@ it, the first version's code or the one tagged `qi-chart-2.0.0`, is of the earli
   next release, `dev/ts/lib/chart/package.json`, `dev/ts/lib/chart/README.md`.
 - **2026-11-08, the owner.** The branch is `main`. Why: the new repository was made on `main`,
   every other qi-v2 project's branch, `qi-v2-platform`'s among them. Shapes: `agents/rules.md` (The repository).
+- **2026-11-09, the owner.** `@qi/chart` takes `chanlun` 3.1.0, the contract's release: its structure input 3.1.0's
+  records, the K-lines beside them `market` 1.1.0's, its x-axis market's K-line alone; nothing of 1.1.0 stays, in
+  `flake.lock`, a package or what a caller bundles; the structure tested on the contract's own vectors. It ends the
+  leave of 2026-11-08 for `chanlun` 1.1.0 and `chanlun-results` 0.2.0. Why: every part takes the newest, and an upgrade
+  updates the whole. Shapes: `flake.nix`, `flake.lock`, `dev/ts/`, `docs/designs/design-chart-chanlun-3-2026-11-09.md`,
+  `dev/ts/lib/chart/README.md`.
+- **2026-11-09, the owner.** The chart app's charts are of K-lines alone until results are published that name the
+  K-lines they were made from; `chanlun-results` is no longer taken, and every chart, check and hash of a set goes or
+  is made again from bars. Why: 0.8.0, the results on 3.1.0, hold the runs alone and name no K-lines, so none can be
+  drawn. Shapes: `results.lock`, `Makefile`, `dev/scripts/`, `PRODUCTS.md`, `dev/ts/app/chart/`,
+  `docs/designs/design-chart-app-2026-10-24.md`.
+- **2026-11-09, the owner.** A caller of `@qi/chart` finds in the package every palette name the engines use and what
+  it colours; in the same release the licence is named in the package's files, the documents that name the tag
+  `qi-chart-2.0.0` say it is of the earlier history, and `agents/rules.md` says the repository is public. Shapes:
+  `dev/ts/lib/chart/README.md`, `dev/ts/lib/chart/package.json`, `README.md`, `agents/rules.md`.
+- **2026-11-09, the owner.** `make check` runs every target `dev/scripts/verify.py --all` runs. Why: one name for
+  every check, run in the shell offline. Shapes: `Makefile`.
+- **2026-11-09, the owner** (on the session's proposal). The structure input is the run whole (`run`, a
+  `chanlun` 3.1.0 `Run`), a position the K-line whose `index` it is; `located` checks that its positions are the
+  K-lines given, that each K-line of a merged bar's `extremes` holds its extreme, and that every merged bar a record
+  names is the run's. Why: the run is the contract's own record of a series, decoded by the contract at the caller's
+  boundary; the run names no K-lines, so these are the checks of the K-lines given beside it that the records allow.
+  Shapes: `docs/designs/design-chart-chanlun-3-2026-11-09.md` (The components), `dev/ts/lib/chart/src/`.
+- **2026-11-09, the owner** (on the session's proposal). The records are drawn as the contract's Reading
+  the records says, at a merged bar's `index` and `extremes`; each 线段, 走势 and 中枢 in the group of its own level;
+  a 分型 in one colour, and one the records make neither top nor bottom not drawn; a 走势 whose ends are level in a
+  colour of its own, `flat`. Why: they are the contract's readings and levels; 3.1.0 no longer states that a 线段 of
+  level L + 1 is a 走势 of level L, its 分型 holds no confirmation and no kind of its own, and SPEC gives a line a
+  direction only where its ends differ. Shapes: `docs/designs/design-chart-chanlun-3-2026-11-09.md` (Reading the
+  records, The levels, The options).
+- **2026-11-09, the owner** (on the session's proposal). The app's path for a structure stays on 3.1.0, a
+  run given beside its bars (`--run` with `--input` and `--request`), drawn by `make chart-check` on the contract's
+  vectors; with a run, `--window` is refused. Why: this version changes how the structure is drawn, which is looked at
+  in both engines and checked in a browser and in the picture, and the vectors are the one public run with its
+  K-lines. Shapes: `docs/designs/design-chart-chanlun-3-2026-11-09.md` (The chart app), `dev/ts/app/chart/`,
+  `Makefile`, `docs/designs/design-chart-app-2026-10-24.md`.
+- **2026-11-09, the owner** (on the session's proposal). The palette's names are in the package's README,
+  a table held to the library's code by a test. Why: the names are the library's and the colours the page's; a
+  palette in the package would choose colours for every taker and be a second home of the app's. Shapes:
+  `dev/ts/lib/chart/README.md`, `dev/ts/lib/chart/test/`.
+- **2026-11-09, the owner** (on the session's proposal). The release is `qi-chart` 3.0.0, by the tag
+  `qi-chart-3.0.0`, the package holding `LICENSE`. Why: version 3 is this design; a caller's code that gives a
+  structure no longer type-checks; the licence asks that a copy go with the work. Shapes: `flake.nix`,
+  `dev/ts/lib/chart/package.json`, `PRODUCTS.md`, `dev/ts/lib/chart/README.md`.
 
 ## Open
 

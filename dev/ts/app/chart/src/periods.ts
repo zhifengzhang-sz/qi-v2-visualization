@@ -1,4 +1,4 @@
-// 周期: the same bars at other periods, each run its own folder and pages (make chart SET= OUT=), given as
+// 周期: the same bars at other periods, each run its own folder and pages (make chart INPUT= REQUEST= OUT=), given as
 // NAME=DIR,NAME=DIR,… with this run's folder among them; each page's pull-down, its names and, for each, the page of
 // the same engine in that folder, relative to this one.
 

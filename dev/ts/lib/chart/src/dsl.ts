@@ -148,11 +148,8 @@ export type Drawing<R> = {
   readonly choice: Choice<R>;
 };
 
-// How a configuration is drawn from its confirmations: not at all without confirmStartDate; dashed (still forming)
-// with it but without confirmEndDate; solid with both.
-export type Settled = "none" | "dashed" | "solid";
-export const settled = (c: {
-  readonly confirmStartDate?: number | undefined;
-  readonly confirmEndDate?: number | undefined;
-}): Settled =>
-  c.confirmStartDate === undefined ? "none" : c.confirmEndDate === undefined ? "dashed" : "solid";
+// How a record is drawn from its confirmation (@qi/chanlun: a record's first K-line confirms its start): dashed while
+// it is still going on, with no confirmEnd; solid once it has one.
+export type Settled = "dashed" | "solid";
+export const settled = (c: { readonly confirmEnd?: number | undefined }): Settled =>
+  c.confirmEnd === undefined ? "dashed" : "solid";

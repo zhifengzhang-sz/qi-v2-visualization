@@ -41,8 +41,6 @@ const fault = (
   context,
 });
 
-const isMarket = (k: Components["xAxis"][number]): k is MarketKLine => "index" in k;
-
 // An engine that names each primitive it is given: an add-on online draws with series only (its series are replaced
 // whole at each update, and a box, a line or a mark has no such change).
 const kinds: Engine<string> = {
@@ -74,17 +72,17 @@ const checked = (c: Components): Result<Components, OnlineError> =>
     result.map(() => c),
   );
 
-// An online chart from a chart's components: its K-lines market's, at least one, no 缠论 data
+// An online chart from a chart's components: at least one K-line, a run of no record
+const none = (r: Components["run"]): boolean =>
+  [r.merged, r.fractals, r.strokes, r.segments, r.moves, r.consolidations].every((part) => part.length === 0);
 export const online = (c: Components): Result<Online, OnlineError> =>
   c.xAxis.length === 0
     ? result.failure(fault("ONLINE_START", "the chart has no K-line"))
-    : !c.xAxis.every(isMarket)
-      ? result.failure(fault("ONLINE_START", "the chart's K-lines are not market's"))
-      : [c.merged, c.fractals, c.strokes, c.duan, c.zoushi, c.zhongshu].some((d) => d.length > 0)
-        ? result.failure(fault("ONLINE_START", "the chart has 缠论 data, which is not online"))
-        : result.map((ok: Components): Online => ({ components: ok, forming: undefined }))(checked(c));
+    : !none(c.run)
+      ? result.failure(fault("ONLINE_START", "the chart has 缠论 data, which is not online"))
+      : result.map((ok: Components): Online => ({ components: ok, forming: undefined }))(checked(c));
 
-const marketOf = (o: Online): readonly MarketKLine[] => o.components.xAxis.filter(isMarket);
+const marketOf = (o: Online): readonly MarketKLine[] => o.components.xAxis;
 // the K-line's own fields: an ongoing K-line drawn as a K-line
 const asKLine = (k: MarketKLine | OngoingKLine): MarketKLine => ({
   index: k.index,
