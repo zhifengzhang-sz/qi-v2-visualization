@@ -1,0 +1,7 @@
+# The chart app's settings: how a run is shown, not what it is (src/settings.ts; the app's README, The settings). Every
+# value has its default in the code; this file gives only what differs. `make chart-settings` writes every value, the
+# defaults among them, in this file's form; `make chart CONFIG=FILE` takes another file for a run.
+#
+# The sections: [chart.KEY.style] for the library's components (candles, volume, merged, fx, bi, duan, zoushi,
+# zhongshu, profile; profile also [chart.profile.params]); [chart.layout]; averages, a list, each { params = { period },
+# style = { colour, width } }; [macd.params] and [macd.style]; [picture].

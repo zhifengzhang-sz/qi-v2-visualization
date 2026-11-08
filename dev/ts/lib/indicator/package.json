@@ -1,0 +1,13 @@
+{
+  "name": "@qi/indicator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "the indicators the charts draw beside their bars (sma, ema, macd; profile, the price distribution), general, no chart's (docs/designs/design-chart-lib-2026-10-24.md)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "4.1.12"
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "files": {
+    "includes": ["**/*.ts", "**/*.json", "!**/node_modules", "!**/dist", "!app/chart/palette.json"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 110
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "lib/*/src/**/*.ts",
+        "app/*/src/**/*.ts",
+        "biome/fixture/**",
+        "!lib/*/src/edge/**",
+        "!app/*/src/edge/**"
+      ],
+      "plugins": [
+        "./biome/no-class.grit",
+        "./biome/no-throw.grit",
+        "./biome/no-try.grit",
+        "./biome/no-let.grit",
+        "./biome/no-loop.grit",
+        "./biome/no-random.grit"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "node:*",
+                      "bun",
+                      "bun:*",
+                      "fs",
+                      "fs/*",
+                      "path",
+                      "child_process",
+                      "os",
+                      "http",
+                      "https",
+                      "http2",
+                      "net",
+                      "dns",
+                      "tls",
+                      "crypto",
+                      "worker_threads",
+                      "readline",
+                      "stream",
+                      "stream/*",
+                      "process",
+                      "timers",
+                      "timers/*",
+                      "perf_hooks",
+                      "cluster",
+                      "dgram",
+                      "vm",
+                      "module"
+                    ],
+                    "message": "an effect: only in src/edge/ (dev/ts/STYLE.md)"
+                  }
+                ]
+              }
+            },
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "fetch": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "process": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "Bun": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "console": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "Date": "the clock is an effect: pass the time in (dev/ts/STYLE.md)",
+                  "setTimeout": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "crypto": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "performance": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "setInterval": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "setImmediate": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "queueMicrotask": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "require": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "globalThis": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "clearTimeout": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "clearInterval": "an effect: only in src/edge/ (dev/ts/STYLE.md)",
+                  "structuredClone": "an effect: only in src/edge/ (dev/ts/STYLE.md)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["lib/*/src/edge/**", "app/*/src/edge/**"],
+      "plugins": [
+        "./biome/no-class.grit",
+        "./biome/no-throw.grit",
+        "./biome/no-let.grit",
+        "./biome/no-loop.grit"
+      ]
+    }
+  ]
+}

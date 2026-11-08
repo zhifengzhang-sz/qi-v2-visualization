@@ -1,0 +1,21 @@
+{
+  "name": "chanlun-dev",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "lib/*",
+    "app/*"
+  ],
+  "scripts": {
+    "check": "biome check lib app biome/verify.ts package.json tsconfig.json biome.json vitest.config.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "verify-style": "bun biome/verify.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "fast-check": "4.3.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

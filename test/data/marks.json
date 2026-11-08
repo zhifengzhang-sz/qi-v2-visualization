@@ -1,0 +1,23 @@
+{
+  "picture": "BTCUSDT minutes 2000-3999",
+  "instrument": "BTCUSDT",
+  "period": "1m",
+  "scale": 100,
+  "from": "2026-08-25 18:25:00",
+  "to": "2026-08-27 03:44:00",
+  "levels": [{ "price": 7844546, "text": "78445.46 (1/2 of the high and the low)" }],
+  "points": [
+    { "time": "2026-08-25 18:25:00", "price": 7926436, "text": "18:25 high 79264.36" },
+    { "time": "2026-08-26 15:04:00", "price": 7762656, "text": "15:04 low 77626.56" }
+  ],
+  "spans": [
+    { "from": "2026-08-27 02:57:00", "to": "2026-08-27 03:06:00", "low": 7872467, "high": 7872708, "text": "02:57–03:06 sideways" }
+  ],
+  "moves": [
+    {
+      "from": { "time": "2026-08-25 18:25:00", "price": 7926436 },
+      "to": { "time": "2026-08-26 15:04:00", "price": 7762656 },
+      "text": "high to low"
+    }
+  ]
+}

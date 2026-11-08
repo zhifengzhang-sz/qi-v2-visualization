@@ -1,0 +1,15 @@
+{
+  "name": "@qi/app-chart",
+  "version": "1.8.0",
+  "private": true,
+  "type": "module",
+  "description": "the chart app (docs/designs/design-chart-app-2026-10-24.md): a run of the published results read into the components of @qi/chart, drawn by its tv engine as a page",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@qi/chart": "workspace:*",
+    "@qi/indicator": "workspace:*",
+    "zod": "4.1.12"
+  }
+}
