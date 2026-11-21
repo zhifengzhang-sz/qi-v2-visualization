@@ -12,7 +12,8 @@ write access to the repository.
 |---|---|---|---|
 | the work | `dev/ts/` (the libraries and the app), `dev/docs/`, `test/data/` | yes | the sessions |
 | what it owns, gives and takes | `PRODUCTS.md` | yes | the sessions, in the commit of the change it describes |
-| the project's machinery | `flake.nix`, `flake.lock`, `Makefile`, `dev/hooks/`, `dev/scripts/`, `.envrc` | yes | the sessions |
+| the project's machinery | `flake.nix`, `flake.lock`, `Makefile`, `dev/scripts/`, `.envrc` | yes | the sessions |
+| the pre-commit hook, `make verify` | git's hooks folder | no | `make install` |
 | the state of the work | `docs/opening.md`, `docs/milestones.md`, `docs/designs/`, `docs/research/`, `docs/decisions.md` | yes | each session, at its end |
 | the rules for agents, their source | `agents/` | yes | the sessions, the owner approving |
 | the rules for agents, generated | `AGENTS.md`, `CLAUDE.md`, `.claude/agents/`, `.github/agents/` | no | `make agents`, by the kit |

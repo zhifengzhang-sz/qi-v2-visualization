@@ -204,6 +204,13 @@ it, the first version's code or the one tagged `qi-chart-2.0.0`, is of the earli
   `qi-chart-3.0.0`, the package holding `LICENSE`. Why: version 3 is this design; a caller's code that gives a
   structure no longer type-checks; the licence asks that a copy go with the work. Shapes: `flake.nix`,
   `dev/ts/lib/chart/package.json`, `PRODUCTS.md`, `dev/ts/lib/chart/README.md`.
+- **2026-11-21, the owner.** The project's files in line with the kit's shared rules: `qi-v2` and the kit taken by
+  their release branches; the kit's part of the `Makefile` and `.gitignore` as `qi-v2-nix`'s `practices.md` gives it
+  (section 8), its pre-commit hook in place of `dev/hooks/pre-commit`, whose run of the checks in the project's shell
+  moves into `make verify`; `make products-check` by the kit's part of `make verify`, out of `dev/scripts/verify.py`'s
+  table, and run by `make check` after it. Why: each release of `qi-v2` and the kit then comes by `nix flake update`,
+  and the kit's part is the same in every project. Shapes: `flake.nix`, `flake.lock`, `Makefile`, `.gitignore`,
+  `dev/scripts/verify.py`, `docs/process.md`, `docs/milestones.md`, `README.md`.
 
 ## Open
 

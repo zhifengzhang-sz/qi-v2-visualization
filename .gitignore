@@ -1,6 +1,6 @@
-# the TypeScript's packages and what the targets write (the charts, the engines' scripts, the reports)
+# the TypeScript's packages (what the targets write, the charts, the engines' scripts and the reports, is in .reports/,
+# the kit's below)
 node_modules/
-.reports/
 # a local cache no target writes now (an earlier version's fetched results): never committed
 /.cache/
 # what LaTeX writes while it builds the static picture
@@ -16,14 +16,15 @@ node_modules/
 .claude/settings.local.json
 # the owner's local file
 todo.md
-# the kit, linked by make install, and what it writes from agents/ (make agents): built output, never edited
+# the kit's: its link, the files make agents generates, a developer's own choices, a role's run in progress
 /dev/agents
-/agents.generated
-/agents.local.json
-/agents.run/
 /AGENTS.md
 /CLAUDE.md
 /.claude/agents/
 /.claude/workflows/
 /.github/agents/
 /.github/hooks/kit.json
+/agents.generated
+/agents.local.json
+/agents.run/
+/.reports/

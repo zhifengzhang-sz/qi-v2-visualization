@@ -1,14 +1,14 @@
 # qi-v2-visualization's tools and products, the same on every machine (docs/process.md): `nix develop`, then
 # `make install` and the targets of the Makefile. Everything from outside is an input pinned by flake.lock, each a
 # public repository read over HTTPS with no login: qi-v2's one nixpkgs, its pure shell and its TeX preset (the static
-# picture); the kit, which writes the agents' files from agents/; 缠论's contract and the market data contract
-# (qi-v2-contracts), with their vectors; @qi/base and @qi/core (qi-v2-ts).
+# picture), and the kit, which writes the agents' files from agents/, each by its release branch; 缠论's contract and
+# the market data contract (qi-v2-contracts), with their vectors; @qi/base and @qi/core (qi-v2-ts).
 {
   description = "qi-v2-visualization: @qi/chart, the 缠论 drawing library, and the chart app; version 3, on the contracts chanlun 3.1.0 and market 1.1.0";
 
-  inputs.qi-v2.url = "github:zhifengzhang-sz/qi-v2-nix?dir=qi-v2";
+  inputs.qi-v2.url = "github:zhifengzhang-sz/qi-v2-nix?dir=qi-v2&ref=release/qi-v2";
   inputs.nixpkgs.follows = "qi-v2/nixpkgs";
-  inputs.kit.url = "github:zhifengzhang-sz/qi-v2-nix?dir=kit";
+  inputs.kit.url = "github:zhifengzhang-sz/qi-v2-nix?dir=kit&ref=release/kit";
   inputs.kit.inputs.qi-v2.follows = "qi-v2";
   # 缠论's contract (qi-v2-contracts, chanlun/README.md): its TypeScript form, @qi/chanlun, linked at
   # dev/ts/node_modules/@qi/chanlun (make chanlun-link) and copied into the packages qi-chart and chart; its vectors

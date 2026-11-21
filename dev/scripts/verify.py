@@ -1,9 +1,10 @@
 """The project's checks for a change: the make targets that check the paths it touches, run one after another.
 
-What a commit requires is the project's, not an agent's: the pre-commit hook (dev/hooks/pre-commit) runs this on
-the staged paths, for a commit made by any kind of agent or by hand.
+What a commit requires is the project's, not an agent's: make verify, which the pre-commit hook runs (make install
+sets it), runs this on the staged paths after the kit's part, for a commit made by any kind of agent or by hand.
+make products-check, for PRODUCTS.md and a root *.lock, is the kit's part, not this table's.
 
-    python3 dev/scripts/verify.py            # the staged paths (the hook)
+    python3 dev/scripts/verify.py            # the staged paths (make verify)
     python3 dev/scripts/verify.py --all      # every target of the table
     python3 dev/scripts/verify.py --since REF
 
@@ -24,9 +25,10 @@ TABLE = [
     ("dev/scripts/qi-chart-taker.ts", ["qi-chart-package"]),
     ("dev/scripts/vectors.ts", ["chart-check", "chart-package"]),
     ("test/data/", ["chart-check", "chart-package"]),
-    ("PRODUCTS.md", ["products-check"]),
-    # the contracts' packages and vectors among the inputs
-    ("flake.lock", ["ts", "chart-check", "chart-package", "qi-chart-package", "products-check"]),
+    # checked by the kit's part of make verify (make products-check), before this script
+    ("PRODUCTS.md", []),
+    # the contracts' packages and vectors among the inputs; products-check by the kit's part
+    ("flake.lock", ["ts", "chart-check", "chart-package", "qi-chart-package"]),
     ("agents/", ["agents-check"]),
 ]
 
@@ -59,7 +61,8 @@ def main():
     results = [(t, subprocess.run(["make", t]).returncode) for t in ts]
     for t, rc in results:
         print(f"verify: make {t}: {'PASS' if rc == 0 else f'FAIL (exit {rc})'}")
-    if not ts:
+    # a path the kit's part checks alone (PRODUCTS.md) has been checked by it
+    if not ts and (unchecked or not ps):
         print("verify: no target checks these paths")
     sys.exit(1 if any(rc for _, rc in results) else 0)
 

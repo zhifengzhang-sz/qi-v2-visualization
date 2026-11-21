@@ -17,7 +17,7 @@ gives and takes: `PRODUCTS.md`. Licensed under the Apache License 2.0 (`LICENSE`
 
 ```sh
 nix develop                        # the tools (flake.nix)
-make install                       # git's hooks, the kit, the agents' files
+make install                       # the kit, the pre-commit hook (make verify), the agents' files
 make ts                            # the TypeScript: lint, format, types, tests
 make chart INPUT=test/data/BTCUSDT-1m.csv REQUEST=test/data/request.json   # the test data's bars drawn, opened
 make vectors                       # the contract's vectors in the app's input form, into .reports/vectors/

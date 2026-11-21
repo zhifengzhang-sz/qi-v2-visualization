@@ -1,7 +1,19 @@
-Opening for the next session, written 2026-11-09 by the session that released `qi-chart` 3.0.0, `@qi/chart` on
-`chanlun` 3.1.0 (`docs/process.md`). It says where the work stands, the next task, and what to read.
+Opening for the next session, written 2026-11-21 by the session that brought the project's files in line with the
+kit's shared rules (`docs/process.md`), after the one that released `qi-chart` 3.0.0, `@qi/chart` on `chanlun` 3.1.0.
+It says where the work stands, the next task, and what to read.
 
 ## Where the work stands
+
+- **The kit's shared rules taken** (`docs/decisions.md`, 2026-11-21): `qi-v2` and `kit` by their release branches
+  (`flake.nix`; `flake.lock` updated by the owner, `nix flake update qi-v2 kit`: `qi-v2-1.0.2` and `kit-0.7.0`, the
+  commits the branches were at); the kit's part of the `Makefile` and `.gitignore` exactly as `qi-v2-nix`'s
+  `practices.md` gives it (section 8), `KITRUN` included; `dev/hooks/pre-commit` gone, its run of the checks in the
+  shell (through `nix develop` from outside it) now `make verify`'s, which the Makefile lets run outside the shell;
+  `make products-check` the kit's part of `make verify`, out of `dev/scripts/verify.py`'s table, and `make check` runs
+  it after `verify.py --all`; `make agents` the kit's (`kit generate`, every kind: `AGENT_KIND=` gone). Once:
+  `git config --unset core.hooksPath`, then `make install`, which writes the hook into `.git/hooks/` and the agents'
+  files from kit 0.7.0, its shared rules among them. The session ran no make target and no build: the checks are the
+  owner's to run.
 
 - **`qi-chart` 3.0.0 is released** (milestone 6; `docs/designs/design-chart-chanlun-3-2026-11-09.md`; `docs/decisions.md`,
   2026-11-09): a chart's 缠论 data is a run of `chanlun` 3.1.0 (`run`), the x-axis `market` 1.1.0's K-lines alone,
@@ -21,7 +33,8 @@ Opening for the next session, written 2026-11-09 by the session that released `q
   vectors` writes the contract's own vectors in the app's input form into `.reports/vectors/` (from the flake input
   `contracts`, named by the shell as `CHANLUN_VECTORS`, and market's as `MARKET_VECTORS`); `make chart-check`, `make
   chart-package` and `make chart-static` draw them beside the test data's bars. The chart app's package keeps 1.8.0.
-- **`make check`** runs every target of `dev/scripts/verify.py`'s table (the owner's, 2026-11-09).
+- **`make check`** runs every target of `dev/scripts/verify.py`'s table (the owner's, 2026-11-09), then `make
+  products-check`.
 - **Checked**, after the last change of code, with no login and no token in the environment: by the role `checker`,
   `nix develop --offline -c make check` (ts, chart-check, chart-package, qi-chart-package, products-check,
   agents-check, each PASS) and `make chart-static` (22 hashes the same; the four of the bars alone 2.0.1's, the others
@@ -62,5 +75,11 @@ than a second; drawing only what an update changes); the Open entry of `docs/dec
 
 ## Open, for the owner
 
-- The standing rules above, for `agents/rules.md`.
+- The standing rules above, for `agents/rules.md`; kit 0.7.0's shared rules now hold that no private project is named
+  in a public one.
+- `agents/rules.md` (What it takes) takes `qi-v2-ts` "at its tag", as `flake.nix` takes `contracts`, `market` and
+  `qi-v2-ts`; the shared rule of kit 0.7.0 takes a released product by its release branch, never by a tag (an exact
+  pin is `?rev=`). Neither `qi-v2-contracts` nor `qi-v2-ts` has a release branch yet. Which stands.
+- `qi-chart`'s release: the shared rule moves `release/qi-chart` to each release's tag, and a taker follows it;
+  `PRODUCTS.md` and `dev/ts/lib/chart/README.md` (Taking it) give the tag `qi-chart-3.0.0`, and the branch is not made.
 - In `docs/decisions.md`, Open: CI.

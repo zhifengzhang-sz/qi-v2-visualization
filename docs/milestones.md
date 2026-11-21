@@ -42,8 +42,9 @@ left.
 
 ## 3 The tooling
 
-**Stands.** `flake.nix`, `flake.lock`; the `Makefile` (`make help`); `make install`; `agents/`; `dev/hooks/pre-commit`
-running `make verify`; `make check`; `make locks-check` (`flake.lock`); `make products-check`.
+**Stands.** `flake.nix`, `flake.lock`, `qi-v2` and `kit` by their release branches; the `Makefile` (`make help`), the
+kit's part as `qi-v2-nix`'s `practices.md` gives it (section 8); `make install`, which sets the pre-commit hook running
+`make verify`; `agents/`; `make check`; `make locks-check` (`flake.lock`); `make products-check`.
 
 **Left.** CI (`docs/decisions.md`, Open).
 
